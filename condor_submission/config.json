@@ -2,7 +2,7 @@
   "output_dir": "/store/user/roguljic/anomaly-tagging/H5_files",
   "datasets": [
     {
-      "name": "/WGto2QG-1Jets_PTG-100to200_TuneCP5_13p6TeV_amcatnloFXFX-pythia8/lpcpfnano-Run3Summer22EEMiniAODv4-130X_mcRun3_2022_realistic_postEE_v6-v2_DAZSLE_PFNano-00000000000000000000000000000000/USER"
+      "name": "/QCD-4Jets_HT-1000to1200_TuneCP5_13p6TeV_madgraphMLM-pythia8/lpcpfnano-Run3Summer22EEMiniAODv4-130X_mcRun3_2022_realistic_postEE_v6-v2_DAZSLE_PFNano-00000000000000000000000000000000/USER"
     }
   ]
 }
