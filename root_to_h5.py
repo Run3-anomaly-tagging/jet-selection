@@ -4,6 +4,7 @@ import h5py
 import ROOT
 import time
 import make_jet_images
+import sys
 
 MAX_EVENTS = -1 #For debugging
 N_HIDDEN_LAYERS = 256
@@ -57,11 +58,7 @@ def bunch_neuron_branches(tree, prefix, n_neurons=256):
     neuron_matrix = np.vstack(neuron_arrays).T.astype(np.float32)
     return neuron_matrix
 
-def main():
-    input_file = "test.root"
-    output_file = "output.h5"
-
-
+def main(input_file,output_file):
     with uproot.open(input_file) as f:
         tree = f["Events"] 
 
@@ -138,4 +135,10 @@ def print_h5_structure(h5file, group_name="/", indent=0):
 
 
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) < 3:
+        print("Usage: python script.py input_file.root output_file.root")
+        sys.exit(1)
+
+    input_file = sys.argv[1]
+    output_file = sys.argv[2]
+    main(input_file,output_file)
