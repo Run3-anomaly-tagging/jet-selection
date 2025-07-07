@@ -107,7 +107,7 @@ echo "LD_LIBRARY_PATH: $LD_LIBRARY_PATH"
 echo "CPLUS_INCLUDE_PATH: $CPLUS_INCLUDE_PATH"
 
 echo "STARTING TIMBER setup"
-source setup_alternative.sh
+source setup.sh
 cd ..
 
 echo "PWD after TIMBER setup"
