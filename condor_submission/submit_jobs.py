@@ -129,14 +129,14 @@ while read input_file output_file; do
     fi
 
     SELECTED_FILE="selected_events.root"
-    python selection.py --input "${LOCAL_INPUT}" --output "${SELECTED_FILE}"
+    python selection.py "${LOCAL_INPUT}" "${SELECTED_FILE}"
     if [ $? -ne 0 ]; then
         echo "Selection failed for ${input_file}"
         exit 1
     fi
 
     LOCAL_OUTPUT="local.h5"
-    python root_to_h5.py --input "${SELECTED_FILE}" --output "${LOCAL_OUTPUT}"
+    python root_to_h5.py "${SELECTED_FILE}" "${LOCAL_OUTPUT}"
     if [ $? -ne 0 ]; then
         echo "root_to_h5 failed for ${input_file}"
         exit 1
