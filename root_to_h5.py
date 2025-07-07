@@ -1,7 +1,6 @@
 import uproot
 import numpy as np
 import h5py
-import ROOT
 import time
 import make_jet_images
 import sys
@@ -10,45 +9,31 @@ MAX_EVENTS = -1 #For debugging
 N_HIDDEN_LAYERS = 256
 CREATE_IMAGES = True
 
-# Builds PFCands pt,eta,phi,m vectors and converts to (px, py, pz, E), pads/truncates to max_cands=100
+#Sorts PFCands by pt, and builds pt,eta,phi,m vectors, pads/truncates to max_cands=100
 def build_pfcand_vectors_ptetaphi(pt_arr, eta_arr, phi_arr, mass_arr, max_cands=100):
-    pfcand_vectors = []
-    print_interval = 1000  # print status every 1000 events
+    print_interval = 1000
     start_time = time.time()
-    #for ev in range(n_events):
-    if MAX_EVENTS>0:
-        n_events = MAX_EVENTS
-    else:
-        n_events = len(pt_arr)
+
+    n_events = MAX_EVENTS if MAX_EVENTS > 0 else len(pt_arr)
+    output = np.zeros((n_events, max_cands, 4), dtype=np.float32)
+
     for ev in range(n_events):
+        pts = pt_arr[ev]
+        sorted_idx = np.argsort(pts)[::-1]
+        sel = sorted_idx[:max_cands]
+
+        n = len(sel)
+        output[ev, :n, 0] = pt_arr[ev][sel]
+        output[ev, :n, 1] = eta_arr[ev][sel]
+        output[ev, :n, 2] = phi_arr[ev][sel]
+        output[ev, :n, 3] = mass_arr[ev][sel]
+
         if ev > 0 and ev % print_interval == 0:
             elapsed = time.time() - start_time
             print(f"Processed {ev}/{n_events} events, elapsed {elapsed:.1f}s, avg {elapsed/ev:.3f}s/event")
-        pts = pt_arr[ev]
 
-        # Get sorting indices descending by pt
-        sorted_indices = np.argsort(pts)[::-1]
+    return output
 
-        pts_sorted = pts[sorted_indices]
-        eta_sorted = eta_arr[ev][sorted_indices]
-        phi_sorted = phi_arr[ev][sorted_indices]
-        mass_sorted = mass_arr[ev][sorted_indices]
-
-        event_vectors = []
-        n_cands = len(pts_sorted)
-        for i in range(min(n_cands, max_cands)):
-            cand = ROOT.Math.PtEtaPhiMVector(
-                pts_sorted[i], eta_sorted[i], phi_sorted[i], mass_sorted[i]
-            )
-            event_vectors.append([cand.Px(), cand.Py(), cand.Pz(), cand.E()])
-
-        # Zero padding
-        for _ in range(max_cands - len(event_vectors)):
-            event_vectors.append([0., 0., 0., 0.])
-
-        pfcand_vectors.append(event_vectors)
-
-    return np.array(pfcand_vectors, dtype=np.float32)
 
 def bunch_neuron_branches(tree, prefix, n_neurons=256):
     neuron_arrays = []
@@ -118,8 +103,9 @@ def main(input_file,output_file):
     print(f"Data saved to {output_file}")
 
     if CREATE_IMAGES:
+        print("Creating jet images")
         make_jet_images.create_jet_images(output_file)
-    
+        make_jet_images.plot_jet_images(output_file, group='LeadFatJet', n_images=9)
     with h5py.File(output_file, "r") as hf:
         print_h5_structure(hf)
 

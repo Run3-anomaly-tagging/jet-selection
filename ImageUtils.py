@@ -21,15 +21,15 @@ def raw_moment(jet, eta_order, phi_order):
     
 
 def convert_to_pt_eta_phi(jet, jet_conts):
+    #This actually now only centers, we no longer need to convert to pt,eta,phi,m
     jet_conv = np.zeros(jet_conts.shape)
     jet_eta = jet[eta_i]
     jet_phi = jet[phi_i]
     pt_sum = 0.
     #Loop thru jet conts and convert from px py pz e to pt eta phi m (is there a way to vectorize this?)
     for i in range(jet_conts.shape[0]):
-        if(jet_conts[i,3] <= 0.01): continue #skip 0 energy jets, save time
         vec = ROOT.Math.PxPyPzEVector(jet_conts[i,0], jet_conts[i,1], jet_conts[i,2], jet_conts[i,3])
-        jet_conv[i] = [vec.Pt(), vec.Eta() - jet_eta, ang_dist(vec.Phi(), jet_phi), 0.]
+        jet_conv[i] = [jet_conts[i][0], jet_conts[i][1] - jet_eta, ang_dist(jet_conts[i][2], jet_phi), 0.]
         pt_sum += vec.Pt()
     return jet_conv
 
