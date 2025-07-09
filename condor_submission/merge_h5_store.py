@@ -72,13 +72,28 @@ for sample in eos_ls(STORE_INPUT_BASE):
     local_merged  = os.path.join(LOCAL_WORKDIR, merged_name)
     remote_merged = f"{STORE_OUTPUT_DIR}/{merged_name}"
 
+    # ask before overwriting an existing merged file
     if merged_name in existing:
-        print(f"[skip] {merged_name} already in {STORE_OUTPUT_DIR}")
-        continue
+        ans = input(f"Merged file '{merged_name}' already exists in {STORE_OUTPUT_DIR}. Overwrite? [y/N]: ")
+        if ans.strip().lower() != 'y':
+            print(f"[skip] {merged_name} not overwritten")
+            continue
+        else:
+            print(f"[recreate] Overwriting existing merged file for {sample}")
 
-    # remove stale merge
+    # remove stale local merge if any
     if os.path.exists(local_merged):
         os.remove(local_merged)
+
+    print(f"[start] {sample}: merging {len(files)} files")
+    dataset_paths = []
+
+    for idx, fname in enumerate(files):
+        remote_file = f"{sample_dir}/{fname}"
+        local_file  = os.path.join(LOCAL_WORKDIR, fname)
+
+        print(f"[download] {remote_file}")
+        xrdcp_in(remote_file, local_file)
 
     print(f"[start] {sample}: merging {len(files)} files")
     dataset_paths = []
