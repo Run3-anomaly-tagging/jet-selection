@@ -12,8 +12,6 @@ from pathlib import Path
 import zipfile
 import glob
 
-CHUNK_SIZE = 30  # Number of files per job chunk
-
 def get_das_files(dataset):
     """Get list of files from DAS dataset"""
     print(f"Querying DAS for files in: {dataset}")
@@ -42,7 +40,7 @@ def get_output_filename(input_file):
     """Generate output filename from input file"""
     return Path(input_file).stem + ".h5"
 
-def chunk_files(files, chunk_size=CHUNK_SIZE):
+def chunk_files(files, chunk_size=10):
     """Yield successive chunks from files list."""
     for i in range(0, len(files), chunk_size):
         yield files[i:i + chunk_size]
@@ -204,7 +202,15 @@ def create_input_zip():
         for pattern in patterns:
             for filepath in glob.glob(pattern):
                 zipf.write(filepath, arcname=os.path.basename(filepath))
-    print("Created input.zip with all .py and .txt files")
+
+        # Add TIMBER_modules directory recursively
+        for foldername, subfolders, filenames in os.walk("../TIMBER_modules"):
+            for filename in filenames:
+                filepath = os.path.join(foldername, filename)
+                arcname = os.path.join("TIMBER_modules", os.path.relpath(filepath, "../TIMBER_modules"))
+                zipf.write(filepath, arcname=arcname)
+    
+    print("Created input.zip with all .py, .txt, and TIMBER_modules files")
 
 def main():
     if len(sys.argv) != 2:
@@ -220,9 +226,20 @@ def main():
     total_files = 0
     files_to_process = 0
 
+    cleanup_patterns = ["*chunk*txt", "*.jdl", "*.pem", "*args.txt"]
+    for pattern in cleanup_patterns:
+        for f in glob.glob(pattern):
+            try:
+                os.remove(f)
+                print(f"Removed {f}")
+            except Exception as e:
+                print(f"Could not remove {f}: {e}")
+
+
     for dataset_info in config['datasets']:
-        dataset = dataset_info['name']
-        dataset_name = dataset.split('/')[1]  # extract primary dataset name
+        chunk_size = dataset_info['chunk_size']
+        dataset = dataset_info['daspath']
+        dataset_name = dataset_info['name']
         
         print(f"\nProcessing dataset: {dataset}")
         print(f"Dataset name: {dataset_name}")
@@ -234,8 +251,8 @@ def main():
 
         total_files += len(files)
 
-        chunked_files = list(chunk_files(files))
-        print(f"Split {len(files)} files into {len(chunked_files)} chunks of up to {CHUNK_SIZE} files")
+        chunked_files = list(chunk_files(files,chunk_size=chunk_size))
+        print(f"Split {len(files)} files into {len(chunked_files)} chunks of up to {chunk_size} files")
 
         chunk_txt_files = []
 
