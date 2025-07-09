@@ -1,65 +1,62 @@
-#!/usr/bin/env python3
 """
-merge_h5_store.py
+Merge individual .h5 files on EOS into one .h5 file per sample.
 
-Merge HDF5 files stored on FNAL EOS into per-sample .h5 files, preserving group structure.
-
-For each sample folder under STORE_INPUT_BASE:
-  1) List .h5 files via `eos root://cmseos.fnal.gov/ ls`
-  2) Copy each file locally with `xrdcp`
-  3) On the first file, scan all dataset paths and create matching resizable datasets in the merged file
-  4) For each file, append every dataset to the merged one
-  5) Clean up local chunk files and upload the merged file back to EOS
+For each subdirectory under the specified EOS path (STORE_DATABASE_PATH), this script:
+  1. Copies all .h5 chunk files locally using `xrdcp`
+  2. Creates a new merged .h5 file by appending datasets from all chunks
+  3. Cleans up local temporary files
+  4. Uploads the merged file back to EOS as: <sample_name>.h5 (in the STORE_DATABASE_PATH directory)
 
 Usage:
-  1. Ensure STORE_OUTPUT_DIR exists on EOS:
-       eos root://cmseos.fnal.gov/ mkdir -p /store/user/ecakir/anomaly-tagging/merged_H5
-  2. Install h5py: `python3 -m pip install --user h5py`
-  3. Run:
-       chmod +x merge_h5_store.py
-       ./merge_h5_store.py
+    python merge_h5_store.py <eos_path>
 """
 import os
+import sys
 import subprocess
 import h5py
 
-STORE_INPUT_BASE = "/store/user/ecakir/anomaly-tagging"
-STORE_OUTPUT_DIR = "/store/user/ecakir/anomaly-tagging/merged_H5"
+# Get path from first argument, or show usage
+if len(sys.argv) < 2:
+    print(f"Example usage: python merge_h5_store.py /store/user/roguljic/anomaly-tagging/H5_files/2022")
+    sys.exit(1)
+
+STORE_DATABASE_PATH = sys.argv[1]
 LOCAL_WORKDIR    = "/tmp/h5_merge_work"
 
 EOS_CMD    = "eos"
 XRDCP_CMD  = "xrdcp"
-EOS_PREFIX = "root://cmseos.fnal.gov/"
-XRD_PREFIX = "root://cmseos.fnal.gov/"
+RDR_PREFIX = "root://cmseos.fnal.gov/"
 
 def eos_ls(path):
     """List entries in an EOS directory."""
-    cmd = [EOS_CMD, EOS_PREFIX, "ls", path]
+    cmd = [EOS_CMD, RDR_PREFIX, "ls", path]
     out = subprocess.check_output(cmd)
     return out.decode().split()
 
 
 def xrdcp_in(remote, local):
-    """Copy from EOS → local disk."""
-    cmd = [XRDCP_CMD, "-f", f"{XRD_PREFIX}{remote}", local]
+    """Copy from EOS -> local disk."""
+    cmd = [XRDCP_CMD, "-f", f"{RDR_PREFIX}{remote}", local]
     subprocess.check_call(cmd)
 
 
 def xrdcp_out(local, remote):
-    """Copy from local disk → EOS."""
-    cmd = [XRDCP_CMD, "-f", local, f"{XRD_PREFIX}{remote}"]
+    """Copy from local disk -> EOS."""
+    cmd = [XRDCP_CMD, "-f", local, f"{RDR_PREFIX}{remote}"]
     subprocess.check_call(cmd)
 
 os.makedirs(LOCAL_WORKDIR, exist_ok=True)
 
-# Pre-cache existing merged outputs
-try:
-    existing = set(eos_ls(STORE_OUTPUT_DIR))
-except subprocess.CalledProcessError:
-    existing = set()
+for sample in eos_ls(STORE_DATABASE_PATH):
+    if sample.endswith('.h5'):
+        continue  # skip merged files, we only want sample directories
+    sample_dir = f"{STORE_DATABASE_PATH}/{sample}"
 
-for sample in eos_ls(STORE_INPUT_BASE):
-    sample_dir = f"{STORE_INPUT_BASE}/{sample}"
+    try:
+        existing = set(eos_ls(STORE_DATABASE_PATH))
+    except subprocess.CalledProcessError:
+        existing = set()
+
     # gather H5 files in this folder
     try:
         files = [f for f in eos_ls(sample_dir) if f.endswith('.h5')]
@@ -70,11 +67,11 @@ for sample in eos_ls(STORE_INPUT_BASE):
 
     merged_name   = f"{sample}.h5"
     local_merged  = os.path.join(LOCAL_WORKDIR, merged_name)
-    remote_merged = f"{STORE_OUTPUT_DIR}/{merged_name}"
+    remote_merged = f"{STORE_DATABASE_PATH}/{merged_name}"
 
     # ask before overwriting an existing merged file
     if merged_name in existing:
-        ans = input(f"Merged file '{merged_name}' already exists in {STORE_OUTPUT_DIR}. Overwrite? [y/N]: ")
+        ans = input(f"Merged file '{merged_name}' already exists in {sample_dir}. Overwrite? [y/N]: ")
         if ans.strip().lower() != 'y':
             print(f"[skip] {merged_name} not overwritten")
             continue
@@ -144,7 +141,7 @@ for sample in eos_ls(STORE_INPUT_BASE):
 
         os.remove(local_file)
 
-    print(f"[upload] {local_merged} → {remote_merged}")
+    print(f"[upload] {local_merged} -> {remote_merged}")
     xrdcp_out(local_merged, remote_merged)
     os.remove(local_merged)
     print(f"[done] {sample}\n")
