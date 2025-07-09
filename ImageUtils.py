@@ -28,9 +28,8 @@ def convert_to_pt_eta_phi(jet, jet_conts):
     pt_sum = 0.
     #Loop thru jet conts and convert from px py pz e to pt eta phi m (is there a way to vectorize this?)
     for i in range(jet_conts.shape[0]):
-        vec = ROOT.Math.PxPyPzEVector(jet_conts[i,0], jet_conts[i,1], jet_conts[i,2], jet_conts[i,3])
         jet_conv[i] = [jet_conts[i][0], jet_conts[i][1] - jet_eta, ang_dist(jet_conts[i][2], jet_phi), 0.]
-        pt_sum += vec.Pt()
+        pt_sum += jet_conts[i][0]
     return jet_conv
 
 
