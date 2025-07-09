@@ -11,6 +11,18 @@ import sys
 from pathlib import Path
 import zipfile
 import glob
+from contextlib import contextmanager
+
+@contextmanager
+def working_directory(path):
+    """Context manager to temporarily change working directory"""
+    original_dir = os.getcwd()
+    os.makedirs(path, exist_ok=True)
+    os.chdir(path)
+    try:
+        yield
+    finally:
+        os.chdir(original_dir)
 
 def get_das_files(dataset):
     """Get list of files from DAS dataset"""
@@ -47,7 +59,7 @@ def chunk_files(files, chunk_size=10):
 
 def create_input_list_file(input_files, output_files, dataset_name, chunk_id):
     """Create a text file listing input/output pairs for a chunk."""
-    chunk_filename = Path(f"{dataset_name}_chunk_{chunk_id:03d}.txt")
+    chunk_filename = Path(f"chunk_{chunk_id:03d}.txt")
     with open(chunk_filename, 'w') as f:
         for in_f, out_f in zip(input_files, output_files):
             f.write(f"{in_f} {out_f}\n")
@@ -173,7 +185,7 @@ universe = vanilla
 executable = job.sh
 arguments = $(args)
 transfer_input_files = input.zip, job.sh
-transfer_output_files = 
+transfer_output_files = ""
 
 output = logs/job_$(args).out
 error = logs/job_$(args).err
@@ -198,16 +210,16 @@ queue args from {argfile_name}
 def create_input_zip():
     """Zip all python scripts and txt files as input.zip"""
     with zipfile.ZipFile('input.zip', 'w') as zipf:
-        patterns = ["../*.py", "./*.txt"]
+        patterns = ["../../*.py", "./*.txt"]
         for pattern in patterns:
             for filepath in glob.glob(pattern):
                 zipf.write(filepath, arcname=os.path.basename(filepath))
 
         # Add TIMBER_modules directory recursively
-        for foldername, subfolders, filenames in os.walk("../TIMBER_modules"):
+        for foldername, subfolders, filenames in os.walk("../../TIMBER_modules"):
             for filename in filenames:
                 filepath = os.path.join(foldername, filename)
-                arcname = os.path.join("TIMBER_modules", os.path.relpath(filepath, "../TIMBER_modules"))
+                arcname = os.path.join("TIMBER_modules", os.path.relpath(filepath, "../../TIMBER_modules"))
                 zipf.write(filepath, arcname=arcname)
     
     print("Created input.zip with all .py, .txt, and TIMBER_modules files")
@@ -243,42 +255,42 @@ def main():
         
         print(f"\nProcessing dataset: {dataset}")
         print(f"Dataset name: {dataset_name}")
-
-        files = get_das_files(dataset)
-        if not files:
-            print(f"No files found for {dataset}, skipping.")
-            continue
-
-        total_files += len(files)
-
-        chunked_files = list(chunk_files(files,chunk_size=chunk_size))
-        print(f"Split {len(files)} files into {len(chunked_files)} chunks of up to {chunk_size} files")
-
-        chunk_txt_files = []
-
-        for chunk_id, file_chunk in enumerate(chunked_files):
-            input_files = file_chunk
-            output_files = [f"{config['output_dir']}/{dataset_name}/{get_output_filename(f)}" for f in input_files]
-
-            # Filter out files already processed
-            filtered_pairs = [(inp, outp) for inp, outp in zip(input_files, output_files) if not check_output_exists(outp)]
-            if not filtered_pairs:
-                print(f"All files in chunk {chunk_id} already processed, skipping chunk.")
+        with working_directory(dataset_name):
+            files = get_das_files(dataset)
+            if not files:
+                print(f"No files found for {dataset}, skipping.")
                 continue
 
-            filtered_input_files, filtered_output_files = zip(*filtered_pairs)
-            chunk_file = create_input_list_file(filtered_input_files, filtered_output_files, dataset_name, chunk_id)
-            chunk_txt_files.append(chunk_file)
-            files_to_process += len(filtered_input_files)
+            total_files += len(files)
 
-        if chunk_txt_files:
-            create_input_zip()
-            create_job_script()
-            jdl_path = create_condor_jdl(chunk_txt_files, dataset_name)
+            chunked_files = list(chunk_files(files,chunk_size=chunk_size))
+            print(f"Split {len(files)} files into {len(chunked_files)} chunks of up to {chunk_size} files")
 
-            print(f"\nTo submit jobs run:\ncondor_submit {jdl_path}")
-        else:
-            print("No new jobs to submit for this dataset.")
+            chunk_txt_files = []
+
+            for chunk_id, file_chunk in enumerate(chunked_files):
+                input_files = file_chunk
+                output_files = [f"{config['output_dir']}/{dataset_name}/{get_output_filename(f)}" for f in input_files]
+
+                # Filter out files already processed
+                filtered_pairs = [(inp, outp) for inp, outp in zip(input_files, output_files) if not check_output_exists(outp)]
+                if not filtered_pairs:
+                    #print(f"All files in chunk {chunk_id} already processed, skipping chunk.") #Commented out because it can be noisy
+                    continue
+
+                filtered_input_files, filtered_output_files = zip(*filtered_pairs)
+                chunk_file = create_input_list_file(filtered_input_files, filtered_output_files, dataset_name, chunk_id)
+                chunk_txt_files.append(chunk_file)
+                files_to_process += len(filtered_input_files)
+
+            if chunk_txt_files:
+                create_input_zip()
+                create_job_script()
+                jdl_path = create_condor_jdl(chunk_txt_files, dataset_name)
+
+                print(f"\nTo submit jobs run:\ncondor_submit {jdl_path}")
+            else:
+                print("No new jobs to submit for this dataset.")
 
     print("\nSummary:")
     print(f"Total files found: {total_files}")
