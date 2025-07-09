@@ -13,33 +13,31 @@ output_file = sys.argv[2]
 
 # Import the C++
 CompileCpp('TIMBER/Framework/include/common.h') # Compile (via gInterpreter) commonly used c++ code
-CompileCpp('TIMBER/Framework/AnomalousJet_modules/JetMatchingToPDGID.cc')
+CompileCpp('TIMBER_modules/JetMatching.cc')
 
 # Create analyzer instance
 a = analyzer(input_file)
 
-ptCut = 50#GeV
 etaCut = 2.4
+
+#Units in GeV
+ptCut = 50
 massCut = 30
+pf_minpt = 1
 
 myCuts = CutGroup('myCuts')
-myCuts.Add('njet',        'nFatJet>1') # NOTE: need to ensure two fat jets exist or next line will seg fault
-myCuts.Add('pt_cut',      f'FatJet_pt[0] > {ptCut} && FatJet_pt[1] > {ptCut}')
-myCuts.Add('eta_cut',     f'abs(FatJet_eta[0]) < {etaCut} && abs(FatJet_eta[1]) < {etaCut}')
-myCuts.Add('mass_cut',     f'abs(FatJet_msoftdrop[0]) > {massCut} && abs(FatJet_msoftdrop[1]) > {massCut}')
+a.Cut('njet',        'nFatJet>0')
+a.Cut('pt_cut',      f'FatJet_pt[0] > {ptCut}')
 
-a.Apply([myCuts])
+a.Define("selected_jet_indices", f"SelectJets(FatJet_pt, FatJet_eta, FatJet_msoftdrop, {ptCut}, {etaCut}, {massCut})")
+a.Cut("has_selected_jets", "selected_jet_indices.size() > 0")
 
-a.Define("pfindices_lead_jet","GetPFCandIndicesForJet(FatJetPFCands_jetIdx,FatJetPFCands_pFCandsIdx,0,nFatJetPFCands)")
-a.Define("pfindices_sublead_jet","GetPFCandIndicesForJet(FatJetPFCands_jetIdx,FatJetPFCands_pFCandsIdx,1,nFatJetPFCands)")
+a.Define("pfindices_selected_jet",f"GetPFCandIndicesForJets(FatJetPFCands_jetIdx,FatJetPFCands_pFCandsIdx,selected_jet_indices,nFatJetPFCands,FatJetPFCands_pt,{pf_minpt})")
 
-a.SubCollection("LeadPFCands", "PFCands", "pfindices_lead_jet",useTake=True, keep=["pt", "phi", "eta", "mass"])
-a.SubCollection("SubleadPFCands", "PFCands", "pfindices_sublead_jet",useTake=True, keep=["pt", "phi", "eta", "mass"])
+a.SubCollection("SelectedPFCands", "PFCands", "pfindices_selected_jet",useTake=True, keep=["pt", "phi", "eta", "mass"])#,"jetIdx"])
+a.Define("SelectedPFCands_jetMatchIdx","GetJetMatchIndexForPFCands(FatJetPFCands_jetIdx, FatJetPFCands_pFCandsIdx, selected_jet_indices, pfindices_selected_jet)")
 
-a.Define("idx0_vec", "ROOT::VecOps::RVec<int>{0}")
-a.Define("idx1_vec", "ROOT::VecOps::RVec<int>{1}")
-a.SubCollection("LeadFatJet", "FatJet",'idx0_vec',useTake=True, keep=["pt", "phi", "eta", "mass","globalParT3_hidNeuron"])
-a.SubCollection("SubleadFatJet", "FatJet",'idx1_vec',useTake=True, keep=["pt", "phi", "eta", "mass","globalParT3_hidNeuron"])
+a.SubCollection("SelectedFatJet", "FatJet",'selected_jet_indices',useTake=True, keep=["pt", "phi", "eta", "mass","globalParT3_hidNeuron"])
 
-out_vars = ['nLeadPFCands','nSubleadPFCands','LeadPFCands*','SubleadPFCands*','nLeadFatJet','nSubleadFatJet','LeadFatJet*','SubleadFatJet*','SubleadFatJet_globalParT3*'] 
+out_vars = ['nSelectedPFCands','nSelectedFatJet','SelectedPFCands*','nSelectedFatJet','SelectedFatJet*','SelectedFatJet_globalParT3*'] 
 a.GetActiveNode().Snapshot(out_vars,output_file,'Events',lazy=False,openOption='RECREATE') 

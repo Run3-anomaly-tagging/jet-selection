@@ -4,110 +4,145 @@ import h5py
 import time
 import make_jet_images
 import sys
+from collections import defaultdict
 
-MAX_EVENTS = -1 #For debugging
+MAX_EVENTS = 500  # limit events for debugging (-1 to disable)
 N_HIDDEN_LAYERS = 256
 CREATE_IMAGES = True
+MAX_PFCANDS = 100
+NPIX = 32
 
-#Sorts PFCands by pt, and builds pt,eta,phi,m vectors, pads/truncates to max_cands=100
-def build_pfcand_vectors_ptetaphi(pt_arr, eta_arr, phi_arr, mass_arr, max_cands=100):
-    print_interval = 1000
-    start_time = time.time()
-
-    n_events = MAX_EVENTS if MAX_EVENTS > 0 else len(pt_arr)
-    output = np.zeros((n_events, max_cands, 4), dtype=np.float32)
+def build_grouped_pfcands(pt, eta, phi, mass, jetIdx, max_cands=MAX_PFCANDS):
+    n_events = len(pt)
+    grouped = []
 
     for ev in range(n_events):
-        pts = pt_arr[ev]
-        sorted_idx = np.argsort(pts)[::-1]
-        sel = sorted_idx[:max_cands]
+        jets_pfcands = defaultdict(list)
+        for i, jet_i in enumerate(jetIdx[ev]):
+            jets_pfcands[jet_i].append((pt[ev][i], eta[ev][i], phi[ev][i], mass[ev][i]))
 
-        n = len(sel)
-        output[ev, :n, 0] = pt_arr[ev][sel]
-        output[ev, :n, 1] = eta_arr[ev][sel]
-        output[ev, :n, 2] = phi_arr[ev][sel]
-        output[ev, :n, 3] = mass_arr[ev][sel]
+        event_output = []
+        for jet in sorted(jets_pfcands.keys()):
+            cands = sorted(jets_pfcands[jet], key=lambda x: x[0], reverse=True)[:max_cands]
+            cand_array = np.zeros((max_cands, 4), dtype=np.float32)
+            for i, (pt_, eta_, phi_, m_) in enumerate(cands):
+                cand_array[i] = [pt_, eta_, phi_, m_]
+            event_output.append(cand_array)
 
-        if ev > 0 and ev % print_interval == 0:
-            elapsed = time.time() - start_time
-            print(f"Processed {ev}/{n_events} events, elapsed {elapsed:.1f}s, avg {elapsed/ev:.3f}s/event")
+        grouped.append(event_output)
+    return grouped  # [n_events][n_jets_per_event][max_cands, 4]
 
-    return output
+def bunch_neuron_branches(tree, prefix, n_hidden, entry_stop=None):
+    branch_names = [f"{prefix}_globalParT3_hidNeuron{i:03d}" for i in range(n_hidden)]
+    arrays = tree.arrays(branch_names, entry_stop=entry_stop, library="np")
+    return arrays, branch_names
 
 
-def bunch_neuron_branches(tree, prefix, n_neurons=256):
-    neuron_arrays = []
-    for i in range(n_neurons):
-        branch_name = f"{prefix}_globalParT3_hidNeuron{i:03d}"
-        neuron_arrays.append(tree[branch_name].array().to_numpy().flatten())#They are of [n_events,1] shape
-    neuron_matrix = np.vstack(neuron_arrays).T.astype(np.float32)
-    return neuron_matrix
-
-def main(input_file,output_file):
+def main(input_file, output_file):
+    start_time = time.time()
     with uproot.open(input_file) as f:
-        tree = f["Events"] 
+        tree = f["Events"]
 
+        # Limit events if debugging
+        n_events_total = len(tree["SelectedFatJet_pt"].array())
+        n_events = n_events_total if MAX_EVENTS < 0 else min(MAX_EVENTS, n_events_total)
 
-        LeadPFCands_pt = tree["LeadPFCands_pt"].array()
-        LeadPFCands_eta = tree["LeadPFCands_eta"].array()
-        LeadPFCands_phi = tree["LeadPFCands_phi"].array()
-        LeadPFCands_mass = tree["LeadPFCands_mass"].array()
+        # Load jet-level info
+        FatJet_pt = tree["SelectedFatJet_pt"].array(entry_stop=n_events)
+        FatJet_eta = tree["SelectedFatJet_eta"].array(entry_stop=n_events)
+        FatJet_phi = tree["SelectedFatJet_phi"].array(entry_stop=n_events)
+        FatJet_mass = tree["SelectedFatJet_mass"].array(entry_stop=n_events)
 
-        SubleadPFCands_pt = tree["SubleadPFCands_pt"].array()
-        SubleadPFCands_eta = tree["SubleadPFCands_eta"].array()
-        SubleadPFCands_phi = tree["SubleadPFCands_phi"].array()
-        SubleadPFCands_mass = tree["SubleadPFCands_mass"].array()
+        PFCands_pt = tree["SelectedPFCands_pt"].array(entry_stop=n_events)
+        PFCands_eta = tree["SelectedPFCands_eta"].array(entry_stop=n_events)
+        PFCands_phi = tree["SelectedPFCands_phi"].array(entry_stop=n_events)
+        PFCands_mass = tree["SelectedPFCands_mass"].array(entry_stop=n_events)
+        PFCands_jetIdx = tree["SelectedPFCands_jetMatchIdx"].array(entry_stop=n_events)
 
-        LeadPFCands_vectors = build_pfcand_vectors_ptetaphi(
-            LeadPFCands_pt, LeadPFCands_eta, LeadPFCands_phi, LeadPFCands_mass)
+        # Build grouped PFCands
+        GroupedPFCands = build_grouped_pfcands(PFCands_pt, PFCands_eta, PFCands_phi,
+                                               PFCands_mass, PFCands_jetIdx, MAX_PFCANDS)
 
-        SubleadPFCands_vectors = build_pfcand_vectors_ptetaphi(
-            SubleadPFCands_pt, SubleadPFCands_eta, SubleadPFCands_phi, SubleadPFCands_mass)
+        # Get neurons for jets [n_events, n_jets, n_neurons]
+        FatJet_neurons, neuron_branch_names = bunch_neuron_branches(tree, "SelectedFatJet", N_HIDDEN_LAYERS, entry_stop=n_events)        
+        
+        # Flatten jets across events
+        jets_list = []
+        jet_counter = 0
+        total_jets = sum(len(jets) for jets in GroupedPFCands)
 
-        LeadFatJet_pt = tree["LeadFatJet_pt"].array()
-        LeadFatJet_eta = tree["LeadFatJet_eta"].array()
-        LeadFatJet_phi = tree["LeadFatJet_phi"].array()
-        LeadFatJet_mass = tree["LeadFatJet_mass"].array()
+        print(f"Total jets in {n_events} events: {total_jets}")
 
-        SubleadFatJet_pt = tree["SubleadFatJet_pt"].array()
-        SubleadFatJet_eta = tree["SubleadFatJet_eta"].array()
-        SubleadFatJet_phi = tree["SubleadFatJet_phi"].array()
-        SubleadFatJet_mass = tree["SubleadFatJet_mass"].array()
+        for ev in range(n_events):
+            n_jets = len(GroupedPFCands[ev])
+            for jet_i in range(n_jets):
+                if jet_counter >= total_jets:
+                    break
 
-        # Bunch hidNeuron branches for Lead and Sublead FatJet into one array [n_events,256] instead of 256 [n_events,1] arrays
-        LeadFatJet_neurons = bunch_neuron_branches(tree, "LeadFatJet", N_HIDDEN_LAYERS)
-        SubleadFatJet_neurons = bunch_neuron_branches(tree, "SubleadFatJet", N_HIDDEN_LAYERS)
+                fatjet_info = (
+                    FatJet_pt[ev][jet_i],
+                    FatJet_eta[ev][jet_i],
+                    FatJet_phi[ev][jet_i],
+                    FatJet_mass[ev][jet_i],
+                )
+                pfcands = GroupedPFCands[ev][jet_i]  # shape (max_cands,4)
 
-        # Save all to HDF5
+                neurons = np.array([FatJet_neurons[name][ev][jet_i] for name in neuron_branch_names])
+
+                # Placeholder for jet image, fill later or set zeros
+                jet_image = np.zeros((NPIX,NPIX), dtype=np.float32)
+
+                jets_list.append((fatjet_info, pfcands, neurons, jet_image))
+
+                jet_counter += 1
+            if jet_counter >= total_jets:
+                break
+
+        print(f"Processed {jet_counter}/{total_jets} jets")
+
+        # Define compound dtype for HDF5 dataset
+        dtype = np.dtype([
+            ("pt", np.float32),
+            ("eta", np.float32),
+            ("phi", np.float32),
+            ("mass", np.float32),
+            ("pfcands", np.float32, (MAX_PFCANDS, 4)),
+            ("hidNeurons", np.float32, (N_HIDDEN_LAYERS,)),
+            ("jet_image", np.float32, (NPIX,NPIX)),
+        ])
+
+        jets_array = np.zeros(len(jets_list), dtype=dtype)
+
+        for i, (fatjet_info, pfcands, neurons, jet_image) in enumerate(jets_list):
+            jets_array[i]["pt"] = fatjet_info[0]
+            jets_array[i]["eta"] = fatjet_info[1]
+            jets_array[i]["phi"] = fatjet_info[2]
+            jets_array[i]["mass"] = fatjet_info[3]
+            jets_array[i]["pfcands"] = pfcands
+            jets_array[i]["hidNeurons"] = neurons
+            jets_array[i]["jet_image"] = jet_image
+
         with h5py.File(output_file, "w") as hf:
-            lead_fatjet_grp = hf.create_group("LeadFatJet")
-            lead_fatjet_grp.create_dataset("pt", data=LeadFatJet_pt)
-            lead_fatjet_grp.create_dataset("eta", data=LeadFatJet_eta)
-            lead_fatjet_grp.create_dataset("phi", data=LeadFatJet_phi)
-            lead_fatjet_grp.create_dataset("mass", data=LeadFatJet_mass)
-            lead_fatjet_grp.create_dataset("hidNeurons", data=LeadFatJet_neurons)
+            hf.create_dataset("Jets", data=jets_array)
 
-            sublead_fatjet_grp = hf.create_group("SubleadFatJet")
-            sublead_fatjet_grp.create_dataset("pt", data=SubleadFatJet_pt)
-            sublead_fatjet_grp.create_dataset("eta", data=SubleadFatJet_eta)
-            sublead_fatjet_grp.create_dataset("phi", data=SubleadFatJet_phi)
-            sublead_fatjet_grp.create_dataset("mass", data=SubleadFatJet_mass)
-            sublead_fatjet_grp.create_dataset("hidNeurons", data=SubleadFatJet_neurons)
-
-            lead_pfcand_grp = hf.create_group("LeadPFCands")
-            lead_pfcand_grp.create_dataset("vectors", data=LeadPFCands_vectors)  # shape (n_events, 100, 4)
-
-            sublead_pfcand_grp = hf.create_group("SubleadPFCands")
-            sublead_pfcand_grp.create_dataset("vectors", data=SubleadPFCands_vectors)
-
-    print(f"Data saved to {output_file}")
+    elapsed = time.time() - start_time
+    print(f"Saved {len(jets_list)} jets to {output_file} in {elapsed:.1f}s ({elapsed/len(jets_list):.3f} jet/s)")
 
     if CREATE_IMAGES:
         print("Creating jet images")
         make_jet_images.create_jet_images(output_file)
-        make_jet_images.plot_jet_images(output_file, group='LeadFatJet', n_images=9)
+        make_jet_images.plot_jet_images(output_file, group='Jets', n_images=9)
+
     with h5py.File(output_file, "r") as hf:
         print_h5_structure(hf)
+        sanityCheck = False
+        if sanityCheck:
+            print("\n--- First Jet Contents ---")
+            jet0 = hf["Jets"][0]
+            np.set_printoptions(threshold=np.inf, linewidth=200,formatter={'float_kind': lambda x: f"{x:.2f}"})
+            for field in jet0.dtype.names:
+                print(f"{field}:\n{jet0[field]}\n")
+
 
 def print_h5_structure(h5file, group_name="/", indent=0):
     group = h5file[group_name]
@@ -127,4 +162,4 @@ if __name__ == "__main__":
 
     input_file = sys.argv[1]
     output_file = sys.argv[2]
-    main(input_file,output_file)
+    main(input_file, output_file)

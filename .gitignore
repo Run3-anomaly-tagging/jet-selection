@@ -1,4 +1,11 @@
+condor_submission/*pem
+condor_submission/*jdl
+condor_submission/*txt
+condor_submission/*zip
+condor_submission/*sh
+condor_submission/logs
 *root
+*png
 *h5
 selection_H.py
 __pycache__
