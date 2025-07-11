@@ -57,13 +57,17 @@ def chunk_files(files, chunk_size=10):
     for i in range(0, len(files), chunk_size):
         yield files[i:i + chunk_size]
 
-def create_input_list_file(input_files, output_files, dataset_name, chunk_id):
+def create_input_list_file(input_files, output_files, dataset_name, chunk_id, match_id=None):
     """Create a text file listing input/output pairs for a chunk."""
     chunk_filename = Path(f"chunk_{chunk_id:03d}.txt")
     with open(chunk_filename, 'w') as f:
         for in_f, out_f in zip(input_files, output_files):
-            f.write(f"{in_f} {out_f}\n")
+            if match_id is not None:
+                f.write(f"{in_f} {out_f} {match_id}\n")
+            else:
+                f.write(f"{in_f} {out_f}\n")
     return chunk_filename
+
 def create_job_script():
     """Create a generic job.sh script that takes chunk txt filename as first argument"""
     script_content = """#!/bin/bash
@@ -128,9 +132,9 @@ echo "ls after TIMBER setup"
 ls
 echo "----------------"
 
-while read input_file output_file; do
+while read input_file output_file match_id; do
     echo "Processing input ${input_file} -> output ${output_file}"
-    
+
     LOCAL_INPUT="input_local.root"
     xrdcp "root://cmseos.fnal.gov/${input_file}" "${LOCAL_INPUT}"
     if [ $? -ne 0 ]; then
@@ -139,7 +143,13 @@ while read input_file output_file; do
     fi
 
     SELECTED_FILE="selected_events.root"
-    python selection.py "${LOCAL_INPUT}" "${SELECTED_FILE}"
+
+    if [ -z "${match_id}" ]; then
+        python selection.py "${LOCAL_INPUT}" "${SELECTED_FILE}"
+    else
+        python selection.py "${LOCAL_INPUT}" "${SELECTED_FILE}" "${match_id}"
+    fi
+
     if [ $? -ne 0 ]; then
         echo "Selection failed for ${input_file}"
         exit 1
@@ -252,7 +262,8 @@ def main():
         chunk_size = dataset_info['chunk_size']
         dataset = dataset_info['daspath']
         dataset_name = dataset_info['name']
-        
+        match_id = dataset_info.get("match_id", None)
+
         print(f"\nProcessing dataset: {dataset}")
         print(f"Dataset name: {dataset_name}")
         with working_directory(dataset_name):
@@ -264,7 +275,13 @@ def main():
             total_files += len(files)
 
             chunked_files = list(chunk_files(files,chunk_size=chunk_size))
-            print(f"Split {len(files)} files into {len(chunked_files)} chunks of up to {chunk_size} files")
+            max_chunks = dataset_info.get("max_chunks", None)
+            if max_chunks is not None:
+                chunked_files = chunked_files[:max_chunks]
+                print("Limiting the total numer of chunks!")
+                print(f"Split {len(files)} files into {len(chunked_files)} chunks of up to {chunk_size} files")
+            else:
+                print(f"Split {len(files)} files into {len(chunked_files)} chunks of up to {chunk_size} files")
 
             chunk_txt_files = []
 
@@ -279,7 +296,7 @@ def main():
                     continue
 
                 filtered_input_files, filtered_output_files = zip(*filtered_pairs)
-                chunk_file = create_input_list_file(filtered_input_files, filtered_output_files, dataset_name, chunk_id)
+                chunk_file = create_input_list_file(filtered_input_files, filtered_output_files, dataset_name, chunk_id, match_id=match_id)
                 chunk_txt_files.append(chunk_file)
                 files_to_process += len(filtered_input_files)
 

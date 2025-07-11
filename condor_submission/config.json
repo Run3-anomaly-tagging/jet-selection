@@ -1,6 +1,20 @@
 {
   "output_dir": "/store/user/roguljic/anomaly-tagging/H5_files/2022",
   "datasets": [
+    {      
+      "daspath": "/QCD-4Jets_HT-600to800_TuneCP5_13p6TeV_madgraphMLM-pythia8/lpcpfnano-Run3Summer22EEMiniAODv4-130X_mcRun3_2022_realistic_postEE_v6-v2_DAZSLE_PFNano-00000000000000000000000000000000/USER",
+      "name": "QCD_HT-600to800",
+      "chunk_size": 10,
+      "xsec_pb": 13540,
+      "max_chunks":20
+    },
+    {      
+      "daspath": "/QCD-4Jets_HT-800to1000_TuneCP5_13p6TeV_madgraphMLM-pythia8/lpcpfnano-Run3Summer22EEMiniAODv4-130X_mcRun3_2022_realistic_postEE_v6-v2_DAZSLE_PFNano-00000000000000000000000000000000/USER",
+      "name": "QCD_HT-800to1000",
+      "chunk_size": 10,
+      "xsec_pb": 3033,
+      "max_chunks":20
+    },
     {
       "daspath": "/QCD-4Jets_HT-1000to1200_TuneCP5_13p6TeV_madgraphMLM-pythia8/lpcpfnano-Run3Summer22EEMiniAODv4-130X_mcRun3_2022_realistic_postEE_v6-v2_DAZSLE_PFNano-00000000000000000000000000000000/USER",
       "name": "QCD_HT-1000to1200",
@@ -12,6 +26,30 @@
     "name": "QCD_HT-1200to1500",
     "chunk_size": 10,
     "xsec_pb": 383
+  },
+  {      
+  "daspath": "/QCD-4Jets_HT-1500to2000_TuneCP5_13p6TeV_madgraphMLM-pythia8/lpcpfnano-Run3Summer22EEMiniAODv4-130X_mcRun3_2022_realistic_postEE_v6-v2_DAZSLE_PFNano-00000000000000000000000000000000/USER ",
+  "name": "QCD_HT-1500to2000",
+  "chunk_size": 10,
+  "xsec_pb": 125,
+  "max_chunks":20
+  },
+  {      
+  "daspath": "/QCD-4Jets_HT-2000_TuneCP5_13p6TeV_madgraphMLM-pythia8/lpcpfnano-Run3Summer22EEMiniAODv4-130X_mcRun3_2022_realistic_postEE_v6-v2_DAZSLE_PFNano-00000000000000000000000000000000/USER",
+  "name": "QCD_HT-2000toInf",
+  "chunk_size": 10,
+  "xsec_pb": 26.5,
+  "max_chunks":20
+  },
+  {      
+  "daspath": "/GluGluHto2B_M-125_TuneCP5_13p6TeV_powheg-minlo-pythia8/lpcpfnano-Run3Summer22MiniAODv4-130X_mcRun3_2022_realistic_v5-v2_DAZSLE_PFNano-00000000000000000000000000000000/USER",
+  "name": "GluGluHto2B",
+  "chunk_size": 10,
+  "xsec_pb": 30.2,
+  "match_id":25
   }
   ]
 }
+
+
+

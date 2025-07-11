@@ -1,6 +1,10 @@
 #include "../include/common.h"
 #include "ROOT/RVec.hxx"
 
+#ifndef M_PI
+#define M_PI 3.14159
+#endif
+
 using namespace ROOT::VecOps; //RVec
 
 // Match jet to gen particle by PDG ID within DeltaR
@@ -99,4 +103,76 @@ RVec<int> GetJetMatchIndexForPFCands(
     }
 
     return jet_match_indices;
+}
+
+float DeltaPhi(float phi1, float phi2){
+    float dPhi = std::fabs(phi1 - phi2);
+    if (dPhi > M_PI) dPhi = 2 * M_PI - dPhi;
+    return dPhi;
+}
+
+RVec<int> GenMatchSelectJets(
+    const RVec<float>& jet_eta,
+    const RVec<float>& jet_phi,
+    const RVec<int>& gen_pdgId,
+    const RVec<int>& gen_statusFlags,
+    const RVec<float>& gen_eta,
+    const RVec<float>& gen_phi,
+    int matchID,
+    float dR)
+{
+    std::vector<std::pair<float, float>> matchedGenCoords;
+    float dR2 = dR*dR;
+    // First: select isolated gen particles
+    for (size_t i = 0; i < gen_pdgId.size(); ++i) {
+        if (!(gen_statusFlags[i] & (1 << 13))) continue; // isLastCopy
+        if (std::abs(gen_pdgId[i]) != matchID) continue;
+
+        float eta = gen_eta[i];
+        float phi = gen_phi[i];
+        bool is_isolated = true;
+
+        for (const auto& [stored_eta, stored_phi] : matchedGenCoords) {
+            float dEta = eta - stored_eta;
+            float dPhi = DeltaPhi(phi,stored_phi);
+
+            if ((dEta * dEta + dPhi * dPhi) < dR2) {
+                is_isolated = false;
+                break;
+            }
+        }
+
+        if (is_isolated) {
+            matchedGenCoords.emplace_back(eta, phi);
+        }
+    }
+
+    // Second: match jets to gen particles
+    RVec<int> matchedJetIndices;
+    for (size_t j = 0; j < jet_eta.size(); ++j) {
+        float j_eta = jet_eta[j];
+        float j_phi = jet_phi[j];
+
+        for (const auto& [g_eta, g_phi] : matchedGenCoords) {
+            float dEta = j_eta - g_eta;
+            float dPhi = DeltaPhi(j_phi,g_phi);
+
+            if ((dEta * dEta + dPhi * dPhi) < dR2) {
+                matchedJetIndices.push_back(j);
+                break;
+            }
+        }
+    }
+
+    return matchedJetIndices;
+}
+
+
+//Returns indices that appear in both lists
+RVec<int> IntersectIndices(RVec<int> a, RVec<int> b) {
+    std::unordered_set<int> b_set(b.begin(), b.end());
+    RVec<int> out;
+    for (auto i : a)
+        if (b_set.count(i)) out.push_back(i);
+    return out;
 }
