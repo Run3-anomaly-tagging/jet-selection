@@ -16,6 +16,7 @@ FileInfo = lambda label, path, xsec: {
 }
 
 files = [
+    FileInfo("HT 400–600",    "/uscms/home/ecakir/nobackup/jet_pt_h5/2022/QCD_HT-400to600.h5", 95620),
     FileInfo("HT 600–800",    "/uscms/home/ecakir/nobackup/jet_pt_h5/2022/QCD_HT-600to800.h5", 13540),
     FileInfo("HT 800–1000",   "/uscms/home/ecakir/nobackup/jet_pt_h5/2022/QCD_HT-800to1000.h5", 3033),
     FileInfo("HT 1000–1200",  "/uscms/home/ecakir/nobackup/jet_pt_h5/2022/QCD_HT-1000to1200.h5", 883),
@@ -57,7 +58,7 @@ ticks = np.linspace(0, 2000, 5)
 ax.set_xlabel(r"$p_{T}^{\mathrm{jet}}\;[\mathrm{GeV}]$")
 ax.set_ylabel("Jets / bin")
 ax.set_yscale("log")
-ax.set_ylim(0.1, 5*10**3)
+ax.set_ylim(0.1, 5*10**5)
 ax.set_xlim(150, 1500)
 # Legend
 leg = ax.legend(loc="best")

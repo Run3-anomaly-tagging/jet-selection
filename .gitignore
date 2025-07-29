@@ -1,3 +1,5 @@
+condor_submission/QCD*
+condor_submission/GluGlu*
 condor_submission/*pem
 condor_submission/*jdl
 condor_submission/*txt

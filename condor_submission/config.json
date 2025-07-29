@@ -1,12 +1,19 @@
 {
   "output_dir": "/store/user/roguljic/anomaly-tagging/H5_files/2022",
   "datasets": [
-    {      
-      "daspath": "/QCD-4Jets_HT-600to800_TuneCP5_13p6TeV_madgraphMLM-pythia8/lpcpfnano-Run3Summer22EEMiniAODv4-130X_mcRun3_2022_realistic_postEE_v6-v2_DAZSLE_PFNano-00000000000000000000000000000000/USER",
+    
+    {
+      "daspath": "/QCD-4Jets_HT-400to600_TuneCP5_13p6TeV_madgraphMLM-pythia8/lpcpfnano-Run3Summer22EEMiniAODv4-130X_mcRun3_2022_realistic_postEE_v6-v2_DAZSLE_PFNano-00000000000000000000000000000000/USER",
+      "name": "QCD_HT-400to600",
+      "chunk_size": 10,
+      "xsec_pb": 95620,
+      "max_chunks":100
+    },
+    {"daspath": "/QCD-4Jets_HT-600to800_TuneCP5_13p6TeV_madgraphMLM-pythia8/lpcpfnano-Run3Summer22EEMiniAODv4-130X_mcRun3_2022_realistic_postEE_v6-v2_DAZSLE_PFNano-00000000000000000000000000000000/USER",
       "name": "QCD_HT-600to800",
       "chunk_size": 10,
       "xsec_pb": 13540,
-      "max_chunks":20
+      "max_chunks":50
     },
     {      
       "daspath": "/QCD-4Jets_HT-800to1000_TuneCP5_13p6TeV_madgraphMLM-pythia8/lpcpfnano-Run3Summer22EEMiniAODv4-130X_mcRun3_2022_realistic_postEE_v6-v2_DAZSLE_PFNano-00000000000000000000000000000000/USER",
