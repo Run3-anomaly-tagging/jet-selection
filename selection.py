@@ -46,13 +46,14 @@ else:
 
 
 a.Cut("has_selected_jets", "selected_jet_indices.size() > 0")
+a.Define("pruned_selected_jet_indices", "TruncateIndices(selected_jet_indices,2)")
 
-a.Define("pfindices_selected_jet",f"GetPFCandIndicesForJets(FatJetPFCands_jetIdx,FatJetPFCands_pFCandsIdx,selected_jet_indices,nFatJetPFCands,FatJetPFCands_pt,{pf_minpt})")
+a.Define("pfindices_selected_jet",f"GetPFCandIndicesForJets(FatJetPFCands_jetIdx,FatJetPFCands_pFCandsIdx,pruned_selected_jet_indices,nFatJetPFCands,FatJetPFCands_pt,{pf_minpt})")
 
 a.SubCollection("SelectedPFCands", "PFCands", "pfindices_selected_jet",useTake=True, keep=["pt", "phi", "eta", "mass"])#,"jetIdx"])
-a.Define("SelectedPFCands_jetMatchIdx","GetJetMatchIndexForPFCands(FatJetPFCands_jetIdx, FatJetPFCands_pFCandsIdx, selected_jet_indices, pfindices_selected_jet)")
+a.Define("SelectedPFCands_jetMatchIdx","GetJetMatchIndexForPFCands(FatJetPFCands_jetIdx, FatJetPFCands_pFCandsIdx, pruned_selected_jet_indices, pfindices_selected_jet)")
 
-a.SubCollection("SelectedFatJet", "FatJet",'selected_jet_indices',useTake=True, keep=["pt", "phi", "eta", "mass","globalParT3_hidNeuron"])
+a.SubCollection("SelectedFatJet", "FatJet",'pruned_selected_jet_indices',useTake=True, keep=["pt", "phi", "eta", "mass","globalParT3_hidNeuron"])
 
 out_vars = ['nSelectedPFCands','nSelectedFatJet','SelectedPFCands*','nSelectedFatJet','SelectedFatJet*','SelectedFatJet_globalParT3*'] 
 a.GetActiveNode().Snapshot(out_vars,output_file,'Events',lazy=False,openOption='RECREATE') 

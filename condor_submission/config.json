@@ -54,6 +54,13 @@
   "chunk_size": 10,
   "xsec_pb": 30.2,
   "match_id":25
+  },
+  {      
+  "daspath": "/TTto4Q_TuneCP5_13p6TeV_powheg-pythia8/lpcpfnano-Run3Summer22MiniAODv4-130X_mcRun3_2022_realistic_v5-v2_DAZSLE_PFNano-00000000000000000000000000000000/USER",
+  "name": "TTto4Q",
+  "chunk_size": 10,
+  "max_chunks":20,
+  "xsec_pb": 762
   }
   ]
 }

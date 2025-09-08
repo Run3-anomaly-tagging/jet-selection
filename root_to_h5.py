@@ -6,7 +6,7 @@ import make_jet_images
 import sys
 from collections import defaultdict
 
-MAX_EVENTS = 500  # limit events for debugging (-1 to disable)
+MAX_EVENTS = -1  # limit events for debugging (-1 to disable)
 N_HIDDEN_LAYERS = 256
 CREATE_IMAGES = True
 MAX_PFCANDS = 100
@@ -157,7 +157,7 @@ def print_h5_structure(h5file, group_name="/", indent=0):
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:
-        print("Usage: python script.py input_file.root output_file.root")
+        print("Usage: python root_to_h5.py input_file.root output_file.h5")
         sys.exit(1)
 
     input_file = sys.argv[1]

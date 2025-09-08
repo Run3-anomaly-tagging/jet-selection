@@ -1,8 +1,15 @@
 {
-  "output_dir": "/store/user/roguljic/anomaly-tagging/H5_files",
+  "output_dir": "/store/user/roguljic/anomaly-tagging/H5_files/2022",
   "datasets": [
-    {
-      "name": "/GluGluHto2Tau_M-125_TuneCP5_13p6TeV_amcatnloFXFX-pythia8/lpcpfnano-Run3Summer22EEMiniAODv4-130X_mcRun3_2022_realistic_postEE_v6-v2_DAZSLE_PFNano-00000000000000000000000000000000/USER"
-    }
+  {      
+  "daspath": "/TTto4Q_TuneCP5_13p6TeV_powheg-pythia8/lpcpfnano-Run3Summer22MiniAODv4-130X_mcRun3_2022_realistic_v5-v2_DAZSLE_PFNano-00000000000000000000000000000000/USER",
+  "name": "TTto4Q",
+  "chunk_size": 10,
+  "max_chunks":20,
+  "xsec_pb": 762
+  }
   ]
 }
+
+
+

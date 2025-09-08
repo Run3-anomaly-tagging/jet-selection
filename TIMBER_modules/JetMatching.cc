@@ -176,3 +176,9 @@ RVec<int> IntersectIndices(RVec<int> a, RVec<int> b) {
         if (b_set.count(i)) out.push_back(i);
     return out;
 }
+
+
+RVec<int> TruncateIndices(const RVec<int>& indices, size_t maxN) {
+    if (indices.size() <= maxN) return indices;
+    return RVec<int>(indices.begin(), indices.begin() + maxN);
+}
