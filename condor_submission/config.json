@@ -7,51 +7,54 @@
       "name": "QCD_HT-400to600",
       "chunk_size": 10,
       "xsec_pb": 95620,
-      "max_chunks":100
+      "max_chunks":10
     },
     {"daspath": "/QCD-4Jets_HT-600to800_TuneCP5_13p6TeV_madgraphMLM-pythia8/lpcpfnano-Run3Summer22EEMiniAODv4-130X_mcRun3_2022_realistic_postEE_v6-v2_DAZSLE_PFNano-00000000000000000000000000000000/USER",
       "name": "QCD_HT-600to800",
       "chunk_size": 10,
       "xsec_pb": 13540,
-      "max_chunks":50
+      "max_chunks":4
     },
     {      
       "daspath": "/QCD-4Jets_HT-800to1000_TuneCP5_13p6TeV_madgraphMLM-pythia8/lpcpfnano-Run3Summer22EEMiniAODv4-130X_mcRun3_2022_realistic_postEE_v6-v2_DAZSLE_PFNano-00000000000000000000000000000000/USER",
       "name": "QCD_HT-800to1000",
       "chunk_size": 10,
       "xsec_pb": 3033,
-      "max_chunks":20
+      "max_chunks":2
     },
     {
       "daspath": "/QCD-4Jets_HT-1000to1200_TuneCP5_13p6TeV_madgraphMLM-pythia8/lpcpfnano-Run3Summer22EEMiniAODv4-130X_mcRun3_2022_realistic_postEE_v6-v2_DAZSLE_PFNano-00000000000000000000000000000000/USER",
       "name": "QCD_HT-1000to1200",
       "chunk_size": 10,
-      "xsec_pb": 883
+      "xsec_pb": 883,
+      "max_chunks":1
     },
     {      
     "daspath": "/QCD-4Jets_HT-1200to1500_TuneCP5_13p6TeV_madgraphMLM-pythia8/lpcpfnano-Run3Summer22EEMiniAODv4-130X_mcRun3_2022_realistic_postEE_v6-v2_DAZSLE_PFNano-00000000000000000000000000000000/USER",
     "name": "QCD_HT-1200to1500",
     "chunk_size": 10,
-    "xsec_pb": 383
+    "xsec_pb": 383,
+    "max_chunks":1
   },
   {      
   "daspath": "/QCD-4Jets_HT-1500to2000_TuneCP5_13p6TeV_madgraphMLM-pythia8/lpcpfnano-Run3Summer22EEMiniAODv4-130X_mcRun3_2022_realistic_postEE_v6-v2_DAZSLE_PFNano-00000000000000000000000000000000/USER ",
   "name": "QCD_HT-1500to2000",
   "chunk_size": 10,
   "xsec_pb": 125,
-  "max_chunks":20
+  "max_chunks":1
   },
   {      
   "daspath": "/QCD-4Jets_HT-2000_TuneCP5_13p6TeV_madgraphMLM-pythia8/lpcpfnano-Run3Summer22EEMiniAODv4-130X_mcRun3_2022_realistic_postEE_v6-v2_DAZSLE_PFNano-00000000000000000000000000000000/USER",
   "name": "QCD_HT-2000toInf",
   "chunk_size": 10,
   "xsec_pb": 26.5,
-  "max_chunks":20
+  "max_chunks":1
   },
   {      
   "daspath": "/GluGluHto2B_M-125_TuneCP5_13p6TeV_powheg-minlo-pythia8/lpcpfnano-Run3Summer22MiniAODv4-130X_mcRun3_2022_realistic_v5-v2_DAZSLE_PFNano-00000000000000000000000000000000/USER",
   "name": "GluGluHto2B",
   "chunk_size": 10,
+  "max_chunks":5,
   "xsec_pb": 30.2,
   "match_id":25
   },
@@ -59,9 +62,27 @@
   "daspath": "/TTto4Q_TuneCP5_13p6TeV_powheg-pythia8/lpcpfnano-Run3Summer22MiniAODv4-130X_mcRun3_2022_realistic_v5-v2_DAZSLE_PFNano-00000000000000000000000000000000/USER",
   "name": "TTto4Q",
   "chunk_size": 10,
-  "max_chunks":20,
-  "xsec_pb": 762
+  "max_chunks":10,
+  "xsec_pb": 762,
+  "match_id":-6
+  },
+  {
+  "daspath":"/Zto2Q-4Jets_HT-800_TuneCP5_13p6TeV_madgraphMLM-pythia8/lpcpfnano-Run3Summer22EEMiniAODv4-130X_mcRun3_2022_realistic_postEE_v6-v2_DAZSLE_PFNano-00000000000000000000000000000000/USER",
+  "name": "ZJets800",
+  "chunk_size": 5,
+  "max_chunks":10,
+  "xsec_pb": 14.57,
+  "match_id":23
+  },
+  {
+  "daspath":"/Wto2Q-3Jets_HT-800_TuneCP5_13p6TeV_madgraphMLM-pythia8/lpcpfnano-Run3Summer22EEMiniAODv4-130X_mcRun3_2022_realistic_postEE_v6-v2_DAZSLE_PFNano-00000000000000000000000000000000/USER",
+  "name": "WJets800",
+  "chunk_size": 5,
+  "max_chunks":10,
+  "xsec_pb": 31.9,
+  "match_id":24
   }
+
   ]
 }
 
