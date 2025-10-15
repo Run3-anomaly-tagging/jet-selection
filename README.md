@@ -4,6 +4,6 @@ Requires TIMBER: https://github.com/JHU-Tools/TIMBER
 
 Local usage:
 ```
-python selection.py <input.root> <selected_jets.root>
-python make_jet_images.py <selected_jets.root> <output.h5>
+python selection.py <input.root> <selected_jets.root> <PDG_ID for matching (optional)>
+python root_to_h5.py <selected_jets.root> <output.h5>
 ```

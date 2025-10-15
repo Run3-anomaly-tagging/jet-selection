@@ -235,13 +235,19 @@ def create_input_zip():
     print("Created input.zip with all .py, .txt, and TIMBER_modules files")
 
 def main():
-    if len(sys.argv) != 2:
-        print("Usage: python submit_jobs.py config.json")
+    if len(sys.argv) < 2:
+        print("Usage: python submit_jobs.py config.json ")
+        print("Optional for automatic submission: python submit_jobs.py config.json 1")
         sys.exit(1)
     
     config_file = sys.argv[1]
     with open(config_file, 'r') as f:
         config = json.load(f)
+
+    if(len(sys.argv==3) and sys.argv[2]==1):
+        submit_flag = True
+    else: 
+        submit_flag = False
     
     Path("logs").mkdir(exist_ok=True)
 
@@ -304,10 +310,12 @@ def main():
                 create_input_zip()
                 create_job_script()
                 jdl_path = create_condor_jdl(chunk_txt_files, dataset_name)
-                cmd = f"condor_submit {jdl_path}"
-                #print(cmd)
-                #os.system(cmd)
-                print(f"\nTo submit jobs run:\ncondor_submit {jdl_path}")
+                if submit_flag:
+                    cmd = f"condor_submit {jdl_path}"
+                    print(cmd)
+                    os.system(cmd)
+                else:
+                    print(f"\nTo submit jobs run:\ncondor_submit {jdl_path}")
             else:
                 print("No new jobs to submit for this dataset.")
 
