@@ -1,0 +1,5 @@
+python selection.py svj.root svj_selected.root 4900101 #It would be better to match any of the dark hadrons, instead of dark quark: 4900113, 4900211, 4900213
+python selection.py Yto4Q.root Yto4Q_selected.root 35
+
+python root_to_h5.py svj_selected.root svj.h5
+python root_to_h5.py Yto4Q_selected.root Yto4Q.h5

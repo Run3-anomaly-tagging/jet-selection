@@ -2,41 +2,15 @@ import uproot
 import numpy as np
 import h5py
 import time
-import make_jet_images
 import sys
-from collections import defaultdict
 
 MAX_EVENTS = -1  # limit events for debugging (-1 to disable)
 N_HIDDEN_LAYERS = 256
-CREATE_IMAGES = True
-MAX_PFCANDS = 100
-NPIX = 32
-
-def build_grouped_pfcands(pt, eta, phi, mass, jetIdx, max_cands=MAX_PFCANDS):
-    n_events = len(pt)
-    grouped = []
-
-    for ev in range(n_events):
-        jets_pfcands = defaultdict(list)
-        for i, jet_i in enumerate(jetIdx[ev]):
-            jets_pfcands[jet_i].append((pt[ev][i], eta[ev][i], phi[ev][i], mass[ev][i]))
-
-        event_output = []
-        for jet in sorted(jets_pfcands.keys()):
-            cands = sorted(jets_pfcands[jet], key=lambda x: x[0], reverse=True)[:max_cands]
-            cand_array = np.zeros((max_cands, 4), dtype=np.float32)
-            for i, (pt_, eta_, phi_, m_) in enumerate(cands):
-                cand_array[i] = [pt_, eta_, phi_, m_]
-            event_output.append(cand_array)
-
-        grouped.append(event_output)
-    return grouped  # [n_events][n_jets_per_event][max_cands, 4]
 
 def bunch_neuron_branches(tree, prefix, n_hidden, entry_stop=None):
     branch_names = [f"{prefix}_globalParT3_hidNeuron{i:03d}" for i in range(n_hidden)]
     arrays = tree.arrays(branch_names, entry_stop=entry_stop, library="np")
     return arrays, branch_names
-
 
 def main(input_file, output_file):
     start_time = time.time()
@@ -52,16 +26,13 @@ def main(input_file, output_file):
         FatJet_eta = tree["SelectedFatJet_eta"].array(entry_stop=n_events)
         FatJet_phi = tree["SelectedFatJet_phi"].array(entry_stop=n_events)
         FatJet_mass = tree["SelectedFatJet_mass"].array(entry_stop=n_events)
+        FatJet_cat = None
+        FatJet_globalParT3_QCD = tree["SelectedFatJet_globalParT3_QCD"].array(entry_stop=n_events)
+        FatJet_globalParT3_TopbWqq = tree["SelectedFatJet_globalParT3_TopbWqq"].array(entry_stop=n_events)
+        FatJet_globalParT3_TopbWq = tree["SelectedFatJet_globalParT3_TopbWq"].array(entry_stop=n_events)
+        if "SelectedFatJet_top_cat" in tree.keys():
+            FatJet_cat = tree["SelectedFatJet_top_cat"].array(entry_stop=n_events)
 
-        PFCands_pt = tree["SelectedPFCands_pt"].array(entry_stop=n_events)
-        PFCands_eta = tree["SelectedPFCands_eta"].array(entry_stop=n_events)
-        PFCands_phi = tree["SelectedPFCands_phi"].array(entry_stop=n_events)
-        PFCands_mass = tree["SelectedPFCands_mass"].array(entry_stop=n_events)
-        PFCands_jetIdx = tree["SelectedPFCands_jetMatchIdx"].array(entry_stop=n_events)
-
-        # Build grouped PFCands
-        GroupedPFCands = build_grouped_pfcands(PFCands_pt, PFCands_eta, PFCands_phi,
-                                               PFCands_mass, PFCands_jetIdx, MAX_PFCANDS)
 
         # Get neurons for jets [n_events, n_jets, n_neurons]
         FatJet_neurons, neuron_branch_names = bunch_neuron_branches(tree, "SelectedFatJet", N_HIDDEN_LAYERS, entry_stop=n_events)        
@@ -69,30 +40,30 @@ def main(input_file, output_file):
         # Flatten jets across events
         jets_list = []
         jet_counter = 0
-        total_jets = sum(len(jets) for jets in GroupedPFCands)
+        total_jets = sum(len(jets) for jets in FatJet_pt)
 
         print(f"Total jets in {n_events} events: {total_jets}")
 
         for ev in range(n_events):
-            n_jets = len(GroupedPFCands[ev])
+            n_jets = len(FatJet_pt[ev])
             for jet_i in range(n_jets):
                 if jet_counter >= total_jets:
                     break
 
+                category = FatJet_cat[ev][jet_i] if FatJet_cat is not None else -1
                 fatjet_info = (
                     FatJet_pt[ev][jet_i],
                     FatJet_eta[ev][jet_i],
                     FatJet_phi[ev][jet_i],
                     FatJet_mass[ev][jet_i],
+                    category,
+                    FatJet_globalParT3_QCD[ev][jet_i],
+                    FatJet_globalParT3_TopbWqq[ev][jet_i],
+                    FatJet_globalParT3_TopbWq[ev][jet_i],
                 )
-                pfcands = GroupedPFCands[ev][jet_i]  # shape (max_cands,4)
 
                 neurons = np.array([FatJet_neurons[name][ev][jet_i] for name in neuron_branch_names])
-
-                # Placeholder for jet image, fill later or set zeros
-                jet_image = np.zeros((NPIX,NPIX), dtype=np.float32)
-
-                jets_list.append((fatjet_info, pfcands, neurons, jet_image))
+                jets_list.append((fatjet_info, neurons))
 
                 jet_counter += 1
             if jet_counter >= total_jets:
@@ -106,32 +77,31 @@ def main(input_file, output_file):
             ("eta", np.float32),
             ("phi", np.float32),
             ("mass", np.float32),
-            ("pfcands", np.float32, (MAX_PFCANDS, 4)),
             ("hidNeurons", np.float32, (N_HIDDEN_LAYERS,)),
-            ("jet_image", np.float32, (NPIX,NPIX)),
+            ("category", np.int32),
+            ("globalParT3_QCD", np.float32),
+            ("globalParT3_TopbWqq", np.float32),
+            ("globalParT3_TopbWq", np.float32)
         ])
 
         jets_array = np.zeros(len(jets_list), dtype=dtype)
 
-        for i, (fatjet_info, pfcands, neurons, jet_image) in enumerate(jets_list):
+        for i, (fatjet_info, neurons) in enumerate(jets_list):
             jets_array[i]["pt"] = fatjet_info[0]
             jets_array[i]["eta"] = fatjet_info[1]
             jets_array[i]["phi"] = fatjet_info[2]
             jets_array[i]["mass"] = fatjet_info[3]
-            jets_array[i]["pfcands"] = pfcands
+            jets_array[i]["category"] = fatjet_info[4]
+            jets_array[i]["globalParT3_QCD"] = fatjet_info[5]
+            jets_array[i]["globalParT3_TopbWqq"] = fatjet_info[6]
+            jets_array[i]["globalParT3_TopbWq"] = fatjet_info[7]
             jets_array[i]["hidNeurons"] = neurons
-            jets_array[i]["jet_image"] = jet_image
 
         with h5py.File(output_file, "w") as hf:
             hf.create_dataset("Jets", data=jets_array)
 
     elapsed = time.time() - start_time
     print(f"Saved {len(jets_list)} jets to {output_file} in {elapsed:.1f}s ({elapsed/len(jets_list):.3f} jet/s)")
-
-    if CREATE_IMAGES:
-        print("Creating jet images")
-        make_jet_images.create_jet_images(output_file)
-        make_jet_images.plot_jet_images(output_file, group='Jets', n_images=9)
 
     with h5py.File(output_file, "r") as hf:
         print_h5_structure(hf)

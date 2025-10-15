@@ -5,7 +5,7 @@ import ROOT,sys
 sys.path.append('../../')
 
 if len(sys.argv) < 3:
-    print("Usage: python selection.py input_file.root output_file.root optional:pdg_id_to_match")
+    print("Usage: python selection.py input_file.root output_file.root optional:pdg_id_to_match")#pdg_id=-6 for top matching
     sys.exit(1)
 
 input_file = sys.argv[1]
@@ -48,12 +48,20 @@ else:
 a.Cut("has_selected_jets", "selected_jet_indices.size() > 0")
 a.Define("pruned_selected_jet_indices", "TruncateIndices(selected_jet_indices,2)")
 
-a.Define("pfindices_selected_jet",f"GetPFCandIndicesForJets(FatJetPFCands_jetIdx,FatJetPFCands_pFCandsIdx,pruned_selected_jet_indices,nFatJetPFCands,FatJetPFCands_pt,{pf_minpt})")
+#We don't need them anymore
+#a.Define("pfindices_selected_jet",f"GetPFCandIndicesForJets(FatJetPFCands_jetIdx,FatJetPFCands_pFCandsIdx,pruned_selected_jet_indices,nFatJetPFCands,FatJetPFCands_pt,{pf_minpt})")
 
-a.SubCollection("SelectedPFCands", "PFCands", "pfindices_selected_jet",useTake=True, keep=["pt", "phi", "eta", "mass"])#,"jetIdx"])
-a.Define("SelectedPFCands_jetMatchIdx","GetJetMatchIndexForPFCands(FatJetPFCands_jetIdx, FatJetPFCands_pFCandsIdx, pruned_selected_jet_indices, pfindices_selected_jet)")
+# a.SubCollection("SelectedPFCands", "PFCands", "pfindices_selected_jet",useTake=True, keep=["pt", "phi", "eta", "mass"])#,"jetIdx"])
+# a.Define("SelectedPFCands_jetMatchIdx","GetJetMatchIndexForPFCands(FatJetPFCands_jetIdx, FatJetPFCands_pFCandsIdx, pruned_selected_jet_indices, pfindices_selected_jet)")
+keep_list = ["pt", "phi", "eta", "mass","globalParT3_hidNeuron","globalParT3_QCD","globalParT3_TopbWqq","globalParT3_TopbWq"]
+if (len(sys.argv) > 3 and int(sys.argv[3])==-6):
+    CompileCpp('TIMBER_modules/top_gen_matching.cc')
+    a.Define("FatJet_top_cat","classifyTopJets(FatJet_phi, FatJet_eta, pruned_selected_jet_indices, nGenPart, GenPart_phi, GenPart_eta, GenPart_pdgId, GenPart_genPartIdxMother)")
+    keep_list.append("top_cat")
 
-a.SubCollection("SelectedFatJet", "FatJet",'pruned_selected_jet_indices',useTake=True, keep=["pt", "phi", "eta", "mass","globalParT3_hidNeuron"])
+a.SubCollection("SelectedFatJet", "FatJet",'pruned_selected_jet_indices',useTake=True, keep=keep_list)
 
-out_vars = ['nSelectedPFCands','nSelectedFatJet','SelectedPFCands*','nSelectedFatJet','SelectedFatJet*','SelectedFatJet_globalParT3*'] 
+#We no longer store PFCands
+#out_vars = ['nSelectedPFCands','nSelectedFatJet','SelectedPFCands*','nSelectedFatJet','SelectedFatJet*','SelectedFatJet_globalParT3*'] 
+out_vars = ['nSelectedFatJet','SelectedFatJet*','SelectedFatJet_globalParT3*'] 
 a.GetActiveNode().Snapshot(out_vars,output_file,'Events',lazy=False,openOption='RECREATE') 
