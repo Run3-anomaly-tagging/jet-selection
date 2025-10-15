@@ -304,7 +304,9 @@ def main():
                 create_input_zip()
                 create_job_script()
                 jdl_path = create_condor_jdl(chunk_txt_files, dataset_name)
-
+                cmd = f"condor_submit {jdl_path}"
+                #print(cmd)
+                #os.system(cmd)
                 print(f"\nTo submit jobs run:\ncondor_submit {jdl_path}")
             else:
                 print("No new jobs to submit for this dataset.")
@@ -315,4 +317,5 @@ def main():
     print(f"Files already processed: {total_files - files_to_process}")
 
 if __name__ == "__main__":
+    # python submit_jobs.py config.json
     main()
