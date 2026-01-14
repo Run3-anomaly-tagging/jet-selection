@@ -17,7 +17,7 @@ import h5py
 
 # Get path from first argument, or show usage
 if len(sys.argv) < 2:
-    print(f"Example usage: python merge_h5_store.py /store/user/roguljic/anomaly-tagging/H5_files/2022")
+    print(f"Example usage: python merge_h5_store.py /store/user/roguljic/anomaly-tagging/H5_files/2022_postEE")
     sys.exit(1)
 
 STORE_DATABASE_PATH = sys.argv[1]

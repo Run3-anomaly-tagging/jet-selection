@@ -33,7 +33,9 @@ def get_das_files(dataset):
     try:
         result = subprocess.run(cmd, shell=True, capture_output=True, text=True, check=True)
         files = result.stdout.strip().split('\n') if result.stdout else []
-        print(f"Found {len(files)} files")
+        # Filter out files containing "25v1"
+        files = [f for f in files if "25v1" not in f]
+        print(f"Found {len(files)} valid files (skipped any with '25v1')")
         return files
     except Exception as e:
         print(f"Error querying DAS: {e}")
@@ -243,8 +245,7 @@ def main():
     config_file = sys.argv[1]
     with open(config_file, 'r') as f:
         config = json.load(f)
-
-    if(len(sys.argv==3) and sys.argv[2]==1):
+    if(len(sys.argv)==3 and sys.argv[2]=="1"):
         submit_flag = True
     else: 
         submit_flag = False
