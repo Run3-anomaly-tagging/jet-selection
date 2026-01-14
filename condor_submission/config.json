@@ -1,5 +1,5 @@
 {
-  "output_dir": "/store/user/roguljic/anomaly-tagging/H5_files/2022",
+  "output_dir": "/store/user/roguljic/anomaly-tagging/H5_files/2022_postEE",
   "datasets": [
     
     {
@@ -51,7 +51,7 @@
   "max_chunks":1
   },
   {      
-  "daspath": "/GluGluHto2B_M-125_TuneCP5_13p6TeV_powheg-minlo-pythia8/lpcpfnano-Run3Summer22MiniAODv4-130X_mcRun3_2022_realistic_v5-v2_DAZSLE_PFNano-00000000000000000000000000000000/USER",
+  "daspath": "/GluGluHto2B_M-125_TuneCP5_13p6TeV_powheg-minlo-pythia8/lpcpfnano-Run3Summer22EEMiniAODv4-130X_mcRun3_2022_realistic_postEE_v6-v2_DAZSLE_PFNano-00000000000000000000000000000000/USER",
   "name": "GluGluHto2B",
   "chunk_size": 10,
   "max_chunks":5,
@@ -59,7 +59,7 @@
   "match_id":25
   },
   {      
-  "daspath": "/TTto4Q_TuneCP5_13p6TeV_powheg-pythia8/lpcpfnano-Run3Summer22MiniAODv4-130X_mcRun3_2022_realistic_v5-v2_DAZSLE_PFNano-00000000000000000000000000000000/USER",
+  "daspath": "/TTto4Q_TuneCP5_13p6TeV_powheg-pythia8/lpcpfnano-Run3Summer22EEMiniAODv4-130X_mcRun3_2022_realistic_postEE_v6-v2_DAZSLE_PFNano-00000000000000000000000000000000/USER",
   "name": "TTto4Q",
   "chunk_size": 10,
   "max_chunks":10,
@@ -81,8 +81,14 @@
   "max_chunks":10,
   "xsec_pb": 31.9,
   "match_id":24
+  },
+  {
+  "daspath":"/JetMET/lpcpfnano-Run2022G-22Sep2023-v2_DAZSLE_PFNano-00000000000000000000000000000000/USER",
+  "name": "JetMET2022G",
+  "chunk_size": 5,
+  "max_chunks":10,
+  "xsec_pb": 1.0
   }
-
   ]
 }
 
