@@ -13,6 +13,8 @@ import zipfile
 import glob
 from contextlib import contextmanager
 
+DEBUG=False
+
 @contextmanager
 def working_directory(path):
     """Context manager to temporarily change working directory"""
@@ -24,18 +26,37 @@ def working_directory(path):
     finally:
         os.chdir(original_dir)
 
+def get_store_files(dataset):
+    """Get list of files from EOS store path"""
+    if DEBUG:
+        print(f"Listing files in EOS store path: {dataset}")
+    cmd = f"xrdfsls {dataset}"
+    try:
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, check=True)
+        files = [line.split()[-1] for line in result.stdout.strip().split('\n') if line]
+        files = [f for f in files if f.endswith(".root") and "25v1" not in f]
+        files.sort()  # Ensure consistent ordering
+        if DEBUG:
+            print(f"Found {len(files)} valid files (skipped any with '25v1')")
+        return files
+    except Exception as e:
+        print(f"Error listing EOS store path: {e}")
+        return []
+
 def get_das_files(dataset):
-    """Get list of files from DAS dataset"""
-    print(f"Querying DAS for files in: {dataset}")
+    """Get list of files from DAS"""
+    if DEBUG:
+        print(f"Querying DAS for files in: {dataset}")
         
     cmd = f'dasgoclient --query="file dataset={dataset} instance=prod/phys03"'
 
     try:
         result = subprocess.run(cmd, shell=True, capture_output=True, text=True, check=True)
         files = result.stdout.strip().split('\n') if result.stdout else []
-        # Filter out files containing "25v1"
         files = [f for f in files if "25v1" not in f]
-        print(f"Found {len(files)} valid files (skipped any with '25v1')")
+        files.sort()  # Ensure consistent ordering
+        if DEBUG:
+            print(f"Found {len(files)} valid files (skipped any with '25v1')")
         return files
     except Exception as e:
         print(f"Error querying DAS: {e}")
@@ -59,21 +80,19 @@ def chunk_files(files, chunk_size=10):
     for i in range(0, len(files), chunk_size):
         yield files[i:i + chunk_size]
 
-def create_input_list_file(input_files, output_files, dataset_name, chunk_id, match_id=None):
+def create_input_list_file(input_files, output_files, dataset_name, chunk_id):
     """Create a text file listing input/output pairs for a chunk."""
-    chunk_filename = Path(f"chunk_{chunk_id:03d}.txt")
+    chunk_filename = Path(f"{dataset_name}_chunk_{chunk_id:03d}.txt")
     with open(chunk_filename, 'w') as f:
         for in_f, out_f in zip(input_files, output_files):
-            if match_id is not None:
-                f.write(f"{in_f} {out_f} {match_id}\n")
-            else:
-                f.write(f"{in_f} {out_f}\n")
+            f.write(f"{in_f} {out_f} {dataset_name}\n")
     return chunk_filename
 
 def create_job_script():
     """Create a generic job.sh script that takes chunk txt filename as first argument"""
     script_content = """#!/bin/bash
 set -x
+echo $TIMBERPATH
 
 if [ -z "$1" ]; then
   echo "Usage: $0 <chunk_file.txt>"
@@ -83,8 +102,6 @@ fi
 CHUNK_FILE="$1"
 
 echo "Starting job processing chunk file ${CHUNK_FILE} at $(date)"
-export SCRAM_ARCH=el9_amd64_gcc11
-source /cvmfs/cms.cern.ch/cmsset_default.sh
 
 echo "Unzipping input.zip..."
 unzip -o input.zip
@@ -96,45 +113,7 @@ fi
 echo "ls after unzip"
 ls
 
-xrdcp root://cmseos.fnal.gov//store/user/roguljic/anomaly-tagging/timber_tar.tgz ./
-tar -xf timber_tar.tgz
-rm timber_tar.tgz
-echo "----------------"
-ls
-echo "----------------"
-
-
-export CMSSW_VERSION=CMSSW_13_2_10
-scram project CMSSW ${CMSSW_VERSION}
-cd ${CMSSW_VERSION}
-eval `scram runtime -sh`
-cd ..
-
-python3 -m virtualenv timber-env 
-source timber-env/bin/activate
-
-cd TIMBER
-make clean
-export BOOST_BASE=/cvmfs/cms.cern.ch/el9_amd64_gcc11/external/boost/1.78.0-c49033d06e1a3bf1beac1c01e1ef27d6/
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$BOOST_BASE/lib
-export CPLUS_INCLUDE_PATH=$BOOST_BASE/include:$CPLUS_INCLUDE_PATH
-
-echo "LD_LIBRARY_PATH: $LD_LIBRARY_PATH"
-echo "CPLUS_INCLUDE_PATH: $CPLUS_INCLUDE_PATH"
-
-echo "STARTING TIMBER setup"
-source setup.sh
-cd ..
-
-echo "PWD after TIMBER setup"
-pwd
-
-echo "----------------"
-echo "ls after TIMBER setup"
-ls
-echo "----------------"
-
-while read input_file output_file match_id; do
+while read input_file output_file process_name; do
     echo "Processing input ${input_file} -> output ${output_file}"
 
     LOCAL_INPUT="input_local.root"
@@ -145,12 +124,7 @@ while read input_file output_file match_id; do
     fi
 
     SELECTED_FILE="selected_events.root"
-
-    if [ -z "${match_id}" ]; then
-        python selection.py "${LOCAL_INPUT}" "${SELECTED_FILE}"
-    else
-        python selection.py "${LOCAL_INPUT}" "${SELECTED_FILE}" "${match_id}"
-    fi
+    python3 selection.py "${LOCAL_INPUT}" "${SELECTED_FILE}" "${process_name}"
 
     if [ $? -ne 0 ]; then
         echo "Selection failed for ${input_file}"
@@ -158,7 +132,7 @@ while read input_file output_file match_id; do
     fi
 
     LOCAL_OUTPUT="local.h5"
-    python root_to_h5.py "${SELECTED_FILE}" "${LOCAL_OUTPUT}"
+    python3 root_to_h5.py "${SELECTED_FILE}" "${LOCAL_OUTPUT}"
     if [ $? -ne 0 ]; then
         echo "root_to_h5 failed for ${input_file}"
         exit 1
@@ -180,7 +154,6 @@ echo "Job processing chunk ${CHUNK_FILE} completed at $(date)"
     with open(script_path, 'w') as f:
         f.write(script_content)
     os.chmod(script_path, 0o755)
-    print(f"Created job script: {script_path}")
     return script_path
 
 
@@ -202,7 +175,7 @@ transfer_output_files = ""
 output = logs/job_$(args).out
 error = logs/job_$(args).err
 log = logs/job_$(args).log
-
++SingularityImage = "/cvmfs/unpacked.cern.ch/registry.hub.docker.com/mrogulji/timber:run3/"
 requirements = (OpSysAndVer =?= "AlmaLinux9")
 request_cpus = 1
 request_memory = 4GB
@@ -215,8 +188,8 @@ queue args from {argfile_name}
     jdl_path = Path(f"submit_{dataset_name}.jdl")
     with open(jdl_path, 'w') as f:
         f.write(jdl_content)
-
-    print(f"Created Condor JDL file: {jdl_path} with ARGFILE: {argfile_name}")
+    if DEBUG:
+        print(f"Created Condor JDL file: {jdl_path} with ARGFILE: {argfile_name}")
     return jdl_path
 
 def create_input_zip():
@@ -234,7 +207,13 @@ def create_input_zip():
                 arcname = os.path.join("TIMBER_modules", os.path.relpath(filepath, "../../TIMBER_modules"))
                 zipf.write(filepath, arcname=arcname)
     
-    print("Created input.zip with all .py, .txt, and TIMBER_modules files")
+    #print("Created input.zip with all .py, .txt, and TIMBER_modules files")
+
+def merged_file_exists(output_dir, dataset_name):
+    """Check if merged .h5 file exists in EOS output directory."""
+    merged_file = f"{output_dir}/{dataset_name}.h5"
+    print("DEBUG: Checking for merged file at:", merged_file)
+    return check_output_exists(merged_file)
 
 def main():
     if len(sys.argv) < 2:
@@ -266,15 +245,25 @@ def main():
 
 
     for dataset_info in config['datasets']:
+        print(20*"--")
         chunk_size = dataset_info['chunk_size']
         dataset = dataset_info['daspath']
         dataset_name = dataset_info['name']
-        match_id = dataset_info.get("match_id", None)
 
         print(f"\nProcessing dataset: {dataset}")
         print(f"Dataset name: {dataset_name}")
+        
+        # Check if merged file already exists
+        if merged_file_exists(config['output_dir'], dataset_name):
+            print(f"Merged file already exists for {dataset_name}, skipping.")
+            total_files += 1  # Count as processed
+            continue
+        
         with working_directory(dataset_name):
-            files = get_das_files(dataset)
+            if dataset.startswith("/store"): #Not listed on das
+                files = get_store_files(dataset)
+            else:
+                files = get_das_files(dataset)
             if not files:
                 print(f"No files found for {dataset}, skipping.")
                 continue
@@ -285,12 +274,13 @@ def main():
             max_chunks = dataset_info.get("max_chunks", None)
             if max_chunks is not None:
                 chunked_files = chunked_files[:max_chunks]
-                print("Limiting the total numer of chunks!")
-                print(f"Split {len(files)} files into {len(chunked_files)} chunks of up to {chunk_size} files")
-            else:
+                if DEBUG:
+                    print("Limiting the total numer of chunks!")
+            if DEBUG:
                 print(f"Split {len(files)} files into {len(chunked_files)} chunks of up to {chunk_size} files")
 
             chunk_txt_files = []
+            files_to_process_this_dataset = 0
 
             for chunk_id, file_chunk in enumerate(chunked_files):
                 input_files = file_chunk
@@ -299,15 +289,16 @@ def main():
                 # Filter out files already processed
                 filtered_pairs = [(inp, outp) for inp, outp in zip(input_files, output_files) if not check_output_exists(outp)]
                 if not filtered_pairs:
-                    #print(f"All files in chunk {chunk_id} already processed, skipping chunk.") #Commented out because it can be noisy
                     continue
 
                 filtered_input_files, filtered_output_files = zip(*filtered_pairs)
-                chunk_file = create_input_list_file(filtered_input_files, filtered_output_files, dataset_name, chunk_id, match_id=match_id)
+                chunk_file = create_input_list_file(filtered_input_files, filtered_output_files, dataset_name, chunk_id)
                 chunk_txt_files.append(chunk_file)
+                files_to_process_this_dataset += len(filtered_input_files)
                 files_to_process += len(filtered_input_files)
 
             if chunk_txt_files:
+                print(f"Number of files to be processed for {dataset_name}: {files_to_process_this_dataset}")
                 create_input_zip()
                 create_job_script()
                 jdl_path = create_condor_jdl(chunk_txt_files, dataset_name)
@@ -319,6 +310,18 @@ def main():
                     print(f"\nTo submit jobs run:\ncondor_submit {jdl_path}")
             else:
                 print("No new jobs to submit for this dataset.")
+                # All files processed but merged file not created yet
+                if files:
+                    print(f"All files processed for {dataset_name}. Running merge_h5.py...")
+                    merge_script = os.path.abspath(os.path.join(os.path.dirname(__file__), "../dataset_manipulation/merge_h5.py"))
+                    try:
+                        subprocess.run(
+                            [sys.executable, merge_script, "--dataset-prefix", dataset_name, "--output-dir", config['output_dir']],
+                            check=True
+                        )
+                        print(f"merge_h5.py completed for {dataset_name}")
+                    except subprocess.CalledProcessError as e:
+                        print(f"merge_h5.py failed for {dataset_name}: {e}")
 
     print("\nSummary:")
     print(f"Total files found: {total_files}")

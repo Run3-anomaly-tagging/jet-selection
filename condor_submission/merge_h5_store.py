@@ -1,7 +1,8 @@
 """
 Merge individual .h5 files on EOS into one .h5 file per sample.
 
-For each subdirectory under the specified EOS path (STORE_DATABASE_PATH), this script:
+If 3 arguments are given, the second is treated as a single sample name to process. Otherwise, all subdirectories under the specified EOS path are processed.
+
   1. Copies all .h5 chunk files locally using `xrdcp`
   2. Creates a new merged .h5 file by appending datasets from all chunks
   3. Cleans up local temporary files
@@ -17,10 +18,11 @@ import h5py
 
 # Get path from first argument, or show usage
 if len(sys.argv) < 2:
-    print(f"Example usage: python merge_h5_store.py /store/user/roguljic/anomaly-tagging/H5_files/2022_postEE")
+    print(f"Example usage: python merge_h5_store.py /store/user/roguljic/anomaly-tagging/H5_files/2022_postEE [dataset_name]")
     sys.exit(1)
 
 STORE_DATABASE_PATH = sys.argv[1]
+SINGLE_SAMPLE = sys.argv[2] if len(sys.argv) > 2 else None
 LOCAL_WORKDIR    = "/tmp/h5_merge_work"
 
 EOS_CMD    = "eos"
@@ -47,9 +49,12 @@ def xrdcp_out(local, remote):
 
 os.makedirs(LOCAL_WORKDIR, exist_ok=True)
 
-for sample in eos_ls(STORE_DATABASE_PATH):
-    if sample.endswith('.h5'):
-        continue  # skip merged files, we only want sample directories
+if SINGLE_SAMPLE:
+    samples = [SINGLE_SAMPLE]
+else:
+    samples = [s for s in eos_ls(STORE_DATABASE_PATH) if not s.endswith('.h5')]
+
+for sample in samples:
     sample_dir = f"{STORE_DATABASE_PATH}/{sample}"
 
     try:

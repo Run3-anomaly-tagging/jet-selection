@@ -1,7 +1,6 @@
 {
-  "output_dir": "/store/user/roguljic/anomaly-tagging/H5_files/2022_postEE",
+  "output_dir": "/store/user/roguljic/anomaly-tagging/H5_files/5Feb26/2022_postEE",
   "datasets": [
-    
     {
       "daspath": "/QCD-4Jets_HT-400to600_TuneCP5_13p6TeV_madgraphMLM-pythia8/lpcpfnano-Run3Summer22EEMiniAODv4-130X_mcRun3_2022_realistic_postEE_v6-v2_DAZSLE_PFNano-00000000000000000000000000000000/USER",
       "name": "QCD_HT-400to600",
@@ -35,60 +34,105 @@
     "chunk_size": 10,
     "xsec_pb": 383,
     "max_chunks":1
-  },
-  {      
-  "daspath": "/QCD-4Jets_HT-1500to2000_TuneCP5_13p6TeV_madgraphMLM-pythia8/lpcpfnano-Run3Summer22EEMiniAODv4-130X_mcRun3_2022_realistic_postEE_v6-v2_DAZSLE_PFNano-00000000000000000000000000000000/USER ",
-  "name": "QCD_HT-1500to2000",
-  "chunk_size": 10,
-  "xsec_pb": 125,
-  "max_chunks":1
-  },
-  {      
-  "daspath": "/QCD-4Jets_HT-2000_TuneCP5_13p6TeV_madgraphMLM-pythia8/lpcpfnano-Run3Summer22EEMiniAODv4-130X_mcRun3_2022_realistic_postEE_v6-v2_DAZSLE_PFNano-00000000000000000000000000000000/USER",
-  "name": "QCD_HT-2000toInf",
-  "chunk_size": 10,
-  "xsec_pb": 26.5,
-  "max_chunks":1
-  },
-  {      
-  "daspath": "/GluGluHto2B_M-125_TuneCP5_13p6TeV_powheg-minlo-pythia8/lpcpfnano-Run3Summer22EEMiniAODv4-130X_mcRun3_2022_realistic_postEE_v6-v2_DAZSLE_PFNano-00000000000000000000000000000000/USER",
-  "name": "GluGluHto2B",
-  "chunk_size": 10,
-  "max_chunks":5,
-  "xsec_pb": 30.2,
-  "match_id":25
-  },
-  {      
-  "daspath": "/TTto4Q_TuneCP5_13p6TeV_powheg-pythia8/lpcpfnano-Run3Summer22EEMiniAODv4-130X_mcRun3_2022_realistic_postEE_v6-v2_DAZSLE_PFNano-00000000000000000000000000000000/USER",
-  "name": "TTto4Q",
-  "chunk_size": 10,
-  "max_chunks":10,
-  "xsec_pb": 762,
-  "match_id":-6
-  },
-  {
-  "daspath":"/Zto2Q-4Jets_HT-800_TuneCP5_13p6TeV_madgraphMLM-pythia8/lpcpfnano-Run3Summer22EEMiniAODv4-130X_mcRun3_2022_realistic_postEE_v6-v2_DAZSLE_PFNano-00000000000000000000000000000000/USER",
-  "name": "ZJets800",
-  "chunk_size": 5,
-  "max_chunks":10,
-  "xsec_pb": 14.57,
-  "match_id":23
-  },
-  {
-  "daspath":"/Wto2Q-3Jets_HT-800_TuneCP5_13p6TeV_madgraphMLM-pythia8/lpcpfnano-Run3Summer22EEMiniAODv4-130X_mcRun3_2022_realistic_postEE_v6-v2_DAZSLE_PFNano-00000000000000000000000000000000/USER",
-  "name": "WJets800",
-  "chunk_size": 5,
-  "max_chunks":10,
-  "xsec_pb": 31.9,
-  "match_id":24
-  },
-  {
-  "daspath":"/JetMET/lpcpfnano-Run2022G-22Sep2023-v2_DAZSLE_PFNano-00000000000000000000000000000000/USER",
-  "name": "JetMET2022G",
-  "chunk_size": 5,
-  "max_chunks":10,
-  "xsec_pb": 1.0
-  }
+    },
+    {      
+    "daspath": "/QCD-4Jets_HT-1500to2000_TuneCP5_13p6TeV_madgraphMLM-pythia8/lpcpfnano-Run3Summer22EEMiniAODv4-130X_mcRun3_2022_realistic_postEE_v6-v2_DAZSLE_PFNano-00000000000000000000000000000000/USER ",
+    "name": "QCD_HT-1500to2000",
+    "chunk_size": 10,
+    "xsec_pb": 125,
+    "max_chunks":1
+    },
+    {      
+    "daspath": "/QCD-4Jets_HT-2000_TuneCP5_13p6TeV_madgraphMLM-pythia8/lpcpfnano-Run3Summer22EEMiniAODv4-130X_mcRun3_2022_realistic_postEE_v6-v2_DAZSLE_PFNano-00000000000000000000000000000000/USER",
+    "name": "QCD_HT-2000toInf",
+    "chunk_size": 10,
+    "xsec_pb": 26.5,
+    "max_chunks":1
+    },
+    {      
+    "daspath": "/GluGluHto2B_M-125_TuneCP5_13p6TeV_powheg-minlo-pythia8/lpcpfnano-Run3Summer22EEMiniAODv4-130X_mcRun3_2022_realistic_postEE_v6-v2_DAZSLE_PFNano-00000000000000000000000000000000/USER",
+    "name": "Hbb",
+    "chunk_size": 10,
+    "max_chunks":5,
+    "xsec_pb": 30.2
+    },
+    {      
+    "daspath": "/TTto4Q_TuneCP5_13p6TeV_powheg-pythia8/lpcpfnano-Run3Summer22EEMiniAODv4-130X_mcRun3_2022_realistic_postEE_v6-v2_DAZSLE_PFNano-00000000000000000000000000000000/USER",
+    "name": "TTto4Q",
+    "chunk_size": 10,
+    "max_chunks":10,
+    "xsec_pb": 762
+    },
+    {
+    "daspath":"/Zto2Q-4Jets_HT-400to600_TuneCP5_13p6TeV_madgraphMLM-pythia8/lpcpfnano-Run3Summer22EEMiniAODv4-130X_mcRun3_2022_realistic_postEE_v6-v2_DAZSLE_PFNano-00000000000000000000000000000000/USER",
+    "name": "ZJets400",
+    "chunk_size": 10,
+    "max_chunks":10,
+    "xsec_pb": 124.1
+    },
+    {
+    "daspath":"/Zto2Q-4Jets_HT-600to800_TuneCP5_13p6TeV_madgraphMLM-pythia8/lpcpfnano-Run3Summer22EEMiniAODv4-130X_mcRun3_2022_realistic_postEE_v6-v2_DAZSLE_PFNano-00000000000000000000000000000000/USER",
+    "name": "ZJets600",
+    "chunk_size": 10,
+    "max_chunks":10,
+    "xsec_pb": 27.28
+    },
+    {
+    "daspath":"/Zto2Q-4Jets_HT-800_TuneCP5_13p6TeV_madgraphMLM-pythia8/lpcpfnano-Run3Summer22EEMiniAODv4-130X_mcRun3_2022_realistic_postEE_v6-v2_DAZSLE_PFNano-00000000000000000000000000000000/USER",
+    "name": "ZJets800",
+    "chunk_size": 5,
+    "max_chunks":10,
+    "xsec_pb": 14.57
+    },
+    {
+    "daspath":"/Wto2Q-3Jets_HT-400to600_TuneCP5_13p6TeV_madgraphMLM-pythia8/lpcpfnano-Run3Summer22EEMiniAODv4-130X_mcRun3_2022_realistic_postEE_v6-v2_DAZSLE_PFNano-00000000000000000000000000000000/USER",
+    "name": "WJets400",
+    "chunk_size": 10,
+    "max_chunks":10,
+    "xsec_pb": 299.8
+    },
+    {
+    "daspath":"/Wto2Q-3Jets_HT-600to800_TuneCP5_13p6TeV_madgraphMLM-pythia8/lpcpfnano-Run3Summer22EEMiniAODv4-130X_mcRun3_2022_realistic_postEE_v6-v2_DAZSLE_PFNano-00000000000000000000000000000000/USER",
+    "name": "WJets600",
+    "chunk_size": 5,
+    "max_chunks":10,
+    "xsec_pb": 63.9
+    },
+    {
+    "daspath":"/Wto2Q-3Jets_HT-800_TuneCP5_13p6TeV_madgraphMLM-pythia8/lpcpfnano-Run3Summer22EEMiniAODv4-130X_mcRun3_2022_realistic_postEE_v6-v2_DAZSLE_PFNano-00000000000000000000000000000000/USER",
+    "name": "WJets800",
+    "chunk_size": 5,
+    "max_chunks":10,
+    "xsec_pb": 31.9
+    },
+    {
+    "daspath":"/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2022EE/SVJ_s_channel/mMed_1500_mDark_20_rinv03/260205_130310/0000/",
+    "name": "SVJ_M1500",
+    "chunk_size": 10,
+    "max_chunks":10,
+    "xsec_pb": 1.0
+    },
+    {
+    "daspath":"/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2022EE/SVJ_s_channel/mMed_1000_mDark_20_rinv03/260205_130412/0000/",
+    "name": "SVJ_M1000",
+    "chunk_size": 10,
+    "max_chunks":10,
+    "xsec_pb": 1.0
+    },
+    {
+    "daspath":"/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2022EE/SVJ_s_channel/mMed_750_mDark_20_rinv03/260205_130458/0000/",
+    "name": "SVJ_M750",
+    "chunk_size": 10,
+    "max_chunks":10,
+    "xsec_pb": 1.0
+    },
+    {
+    "daspath":"/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2022EE/SVJ_s_channel/mMed_500_mDark_20_rinv03/260205_130545/0000/",
+    "name": "SVJ_M500",
+    "chunk_size": 10,
+    "max_chunks":10,
+    "xsec_pb": 1.0
+    }
   ]
 }
 

@@ -6,6 +6,7 @@
 #include "ROOT/RVec.hxx"
 
 typedef ROOT::VecOps::RVec<int> rvec_i;
+typedef ROOT::VecOps::RVec<int> rvec_f;
 
 Float_t deltaR(Float_t eta1, Float_t phi1, Float_t eta2, Float_t phi2);
 Int_t classifyProbeJet(Int_t fatJetIdx,rvec_f FatJet_phi,rvec_f FatJet_eta, Int_t nGenPart, rvec_f GenPart_phi,rvec_f GenPart_eta, rvec_i GenPart_pdgId, rvec_i GenPart_genPartIdxMother);
