@@ -312,16 +312,16 @@ def main():
                 print("No new jobs to submit for this dataset.")
                 # All files processed but merged file not created yet
                 if files:
-                    print(f"All files processed for {dataset_name}. Running merge_h5.py...")
-                    merge_script = os.path.abspath(os.path.join(os.path.dirname(__file__), "../dataset_manipulation/merge_h5.py"))
+                    print(f"All files processed for {dataset_name}. Running merge_h5_store.py...")
+                    merge_script = os.path.abspath(os.path.join(os.path.dirname(__file__), "merge_h5_store.py"))
                     try:
                         subprocess.run(
-                            [sys.executable, merge_script, "--dataset-prefix", dataset_name, "--output-dir", config['output_dir']],
+                            [sys.executable, merge_script, config['output_dir'], dataset_name],
                             check=True
                         )
-                        print(f"merge_h5.py completed for {dataset_name}")
+                        print(f"merge_h5_store.py completed for {dataset_name}")
                     except subprocess.CalledProcessError as e:
-                        print(f"merge_h5.py failed for {dataset_name}: {e}")
+                        print(f"merge_h5_store.py failed for {dataset_name}: {e}")
 
     print("\nSummary:")
     print(f"Total files found: {total_files}")

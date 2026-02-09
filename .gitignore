@@ -1,6 +1,9 @@
 condor_submission/QCD*
 condor_submission/GluGlu*
 condor_submission/*Jets*
+condor_submission/SVJ*
+condor_submission/Hbb*
+condor_submission/Yto*
 condor_submission/TT*
 condor_submission/*pem
 condor_submission/*jdl

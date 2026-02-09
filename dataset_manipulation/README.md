@@ -1,8 +1,8 @@
-# Dataset Stitching
+## Dataset Stitching
 
 This script merges and stitches HDF5 files from multiple dataset samples with optional pT spectrum handling.
 
-## Usage
+### Usage
 
 ```bash
 python stitching.py [options]
@@ -20,4 +20,14 @@ python stitching.py [options]
 ```bash
 python stitching.py --dataset-prefix QCD --merge-type both
 python stitching.py --dataset-prefix WJets --merge-type realistic
+```
+
+## Scaling Factor Calculation
+
+The `calculate_scaling.py` script computes mean and std.dev. per feature to be used in training for standardization of the features.
+
+### Usage
+
+```bash
+python calculate_scaling.py --input input_file.h5 --output output.npz --max-jets 1000000
 ```

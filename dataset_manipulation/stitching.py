@@ -30,14 +30,25 @@ def get_jet_pts(h5_path):
 def get_all_columns(h5_path):
     """Return all columns from the first file (assume all files have same columns)."""
     with h5py.File(h5_path, "r") as f:
-        cols = list(f["Jets"].dtype.fields.keys())
+        jets = f["Jets"]
+        if isinstance(jets, h5py.Dataset):
+            # Structured array format
+            cols = list(jets.dtype.names)
+        else:
+            # Group format (fallback)
+            cols = list(jets.keys())
     return cols
 
 def get_jet_data(h5_path, cols):
     """Return dict of {col: array} for all jets in file."""
     with h5py.File(h5_path, "r") as f:
-        jets = f["Jets"][:]
-        data = {col: jets[col] for col in cols}
+        jets = f["Jets"]
+        if isinstance(jets, h5py.Dataset):
+            # Structured array format
+            data = {col: jets[col][:] for col in cols}
+        else:
+            # Group format (fallback)
+            data = {col: jets[col][:] for col in cols}
     return data
 
 def bin_jet_pts(pts, pt_edges):
@@ -89,65 +100,115 @@ def downsample_indices(indices, n):
 
 def merge_realistic(entries, cols, eff_lumis, out_path):
     """Downsample each file to match the minimum effective lumi."""
-    merged = {col: [] for col in cols}
     lumi_min = np.min(eff_lumis)
+    
+    # Get dtype from first file
+    first_file_path = entries[0]["h5_path"]
+    with h5py.File(first_file_path, "r") as fin:
+        dtype = fin["Jets"].dtype
+    
+    # Calculate total output size
+    total_n = 0
     for entry, lumi in zip(entries, eff_lumis):
-        data = get_jet_data(entry["h5_path"], cols)
         xsec = entry["xsec_pb"]
         n_keep = int(lumi_min * xsec)
-        n_avail = len(data[cols[0]])
+        with h5py.File(entry["h5_path"], "r") as f:
+            n_avail = len(f["Jets"])
         n = min(n_keep, n_avail)
-        idx = downsample_indices(np.arange(n_avail), n)
-        for col in cols:
-            merged[col].append(data[col][idx])
+        total_n += n
         print(f"{entry['name']}: keeping {n} jets (xsec={xsec}, lumi_min={lumi_min:.3f} pb^-1)")
-    # Concatenate and shuffle before saving
-    # It slows down execution time, but ensures jets from different files are mixed together in the outputs
-    # If memory becomes an issue, this should be rewritten in batches
+    
+    # Create output file with pre-allocated dataset
     with h5py.File(out_path, "w") as fout:
-        g = fout.create_group("Events")
-        arrs = {col: np.concatenate(merged[col]) for col in cols}
-        n_total = len(arrs[cols[0]])
-        shuffle_idx = np.random.permutation(n_total)
-        for col in cols:
-            g.create_dataset(col, data=arrs[col][shuffle_idx], compression="gzip")
-    print(f"Saved {out_path} with {sum([len(x) for x in merged[cols[0]]])} jets.")
+        out_dataset = fout.create_dataset("Jets", shape=(total_n,), dtype=dtype, compression="gzip")
+        
+        # Write data in order (sequential copy from each file)
+        write_pos = 0
+        for entry, lumi in zip(entries, eff_lumis):
+            xsec = entry["xsec_pb"]
+            n_keep = int(lumi_min * xsec)
+            with h5py.File(entry["h5_path"], "r") as fin:
+                n_avail = len(fin["Jets"])
+                n = min(n_keep, n_avail)
+                all_jets = fin["Jets"][:]
+                
+            print(f"Writing {n} jets to output...")
+            out_dataset[write_pos:write_pos + n] = all_jets[:n]
+            write_pos += n
+
+    print(f"Saved {out_path} with {total_n} jets.")
 
 def merge_flat(entries, cols, pt_edges, total_per_bin, min_total_bin, out_path):
-    """Downsample in each pT bin to min_total_bin, then merge from all files."""
-    # Collect jets from all files per bin
-    jets_per_bin = {i: {col: [] for col in cols} for i in range(len(pt_edges)-1)}
+    """Downsample in each pT bin to min_total_bin, then merge without shuffling."""
+    # Get dtype from first file
+    first_file_path = entries[0]["h5_path"]
+    with h5py.File(first_file_path, "r") as fin:
+        dtype = fin["Jets"].dtype
+    
+    # Collect indices per bin from all files
+    bin_indices = {i: [] for i in range(len(pt_edges)-1)}
+    
     for entry in entries:
-        data = get_jet_data(entry["h5_path"], cols)
-        pts = data["pt"]
-        bins = bin_jet_pts(pts, pt_edges)
-        for i in range(len(pt_edges)-1):
-            idx_in_bin = np.where(bins == i)[0]
-            for col in cols:
-                jets_per_bin[i][col].append(data[col][idx_in_bin])
-    # For each bin, concatenate jets from all files, downsample to min_total_bin, and collect
-    merged = {col: [] for col in cols}
+        with h5py.File(entry["h5_path"], "r") as f:
+            pts = f["Jets"]["pt"][:]
+            bins = bin_jet_pts(pts, pt_edges)
+            
+            for i in range(len(pt_edges)-1):
+                idx_in_bin = np.where(bins == i)[0]
+                if len(idx_in_bin) > 0:
+                    bin_indices[i].append((entry["h5_path"], idx_in_bin))
+    
+    # Downsample each bin and collect indices grouped by file
+    file_indices = {}  # {file_path: [list of indices to extract]}
+    
     for i in range(len(pt_edges)-1):
-        bin_data = {col: np.concatenate(jets_per_bin[i][col]) if jets_per_bin[i][col] else np.array([]) for col in cols}
-        n_avail = len(bin_data[cols[0]])
+        if not bin_indices[i]:
+            continue
+        
+        # Concatenate all indices for this bin across files
+        bin_file_paths = []
+        bin_idx_lists = []
+        for file_path, indices in bin_indices[i]:
+            bin_file_paths.extend([file_path] * len(indices))
+            bin_idx_lists.extend(indices.tolist())
+        
+        n_avail = len(bin_idx_lists)
         n = min(min_total_bin, n_avail)
+        
         if n > 0:
-            idx = downsample_indices(np.arange(n_avail), n)
-            for col in cols:
-                merged[col].append(bin_data[col][idx])
-    # Concatenate and shuffle before saving
+            # Downsample within bin
+            selected = downsample_indices(np.arange(n_avail), n)
+            for sel_idx in selected:
+                file_path = bin_file_paths[sel_idx]
+                jet_idx = bin_idx_lists[sel_idx]
+                if file_path not in file_indices:
+                    file_indices[file_path] = []
+                file_indices[file_path].append(jet_idx)
+    
+    total_n = sum(len(indices) for indices in file_indices.values())
+    
+    if total_n == 0:
+        with h5py.File(out_path, "w") as fout:
+            fout.create_dataset("Jets", shape=(0,), dtype=dtype, compression="gzip")
+        print(f"Saved {out_path} with 0 jets.")
+        return
+    
+    # Create output file and write data sequentially by file
     with h5py.File(out_path, "w") as fout:
-        g = fout.create_group("Events")
-        if merged[cols[0]]:
-            arrs = {col: np.concatenate(merged[col]) for col in cols}
-            n_total = len(arrs[cols[0]])
-            shuffle_idx = np.random.permutation(n_total)
-            for col in cols:
-                g.create_dataset(col, data=arrs[col][shuffle_idx], compression="gzip")
-        else:
-            for col in cols:
-                g.create_dataset(col, data=np.array([]), compression="gzip")
-    print(f"Saved {out_path} with {sum([len(x) for x in merged[cols[0]]])} jets.")
+        out_dataset = fout.create_dataset("Jets", shape=(total_n,), dtype=dtype, compression="gzip")
+        
+        write_pos = 0
+        for file_path, indices in file_indices.items():
+            with h5py.File(file_path, "r") as fin:
+                all_jets = fin["Jets"][:]
+            
+            selected_jets = all_jets[indices]
+            
+            print(f"Writing {len(indices)} jets to output...")
+            out_dataset[write_pos:write_pos + len(indices)] = selected_jets
+            write_pos += len(indices)
+    
+    print(f"Saved {out_path} with {total_n} jets.")
 
 def main():
     parser = argparse.ArgumentParser(description="Stitch HDF5 files with optional flat or realistic pT spectrum.")
