@@ -44,10 +44,8 @@ def get_jet_data(h5_path, cols):
     with h5py.File(h5_path, "r") as f:
         jets = f["Jets"]
         if isinstance(jets, h5py.Dataset):
-            # Structured array format
             data = {col: jets[col][:] for col in cols}
         else:
-            # Group format (fallback)
             data = {col: jets[col][:] for col in cols}
     return data
 
@@ -99,116 +97,83 @@ def downsample_indices(indices, n):
     return np.random.choice(indices, n, replace=False)
 
 def merge_realistic(entries, cols, eff_lumis, out_path):
-    """Downsample each file to match the minimum effective lumi."""
+    """Downsample each file to match the minimum effective lumi, shuffle in memory, then write."""
     lumi_min = np.min(eff_lumis)
     
-    # Get dtype from first file
     first_file_path = entries[0]["h5_path"]
     with h5py.File(first_file_path, "r") as fin:
         dtype = fin["Jets"].dtype
     
-    # Calculate total output size
-    total_n = 0
+    # Load and downsample data from all files into memory
+    # Uses a lot of memory, but does not require multiple passes through the files
+    all_jets = []
     for entry, lumi in zip(entries, eff_lumis):
         xsec = entry["xsec_pb"]
         n_keep = int(lumi_min * xsec)
         with h5py.File(entry["h5_path"], "r") as f:
             n_avail = len(f["Jets"])
-        n = min(n_keep, n_avail)
-        total_n += n
-        print(f"{entry['name']}: keeping {n} jets (xsec={xsec}, lumi_min={lumi_min:.3f} pb^-1)")
+            n = min(n_keep, n_avail)
+            jets = f["Jets"][:]
+            
+        print(f"{entry['name']}: loading {n} jets (xsec={xsec}, lumi_min={lumi_min:.3f} pb^-1)")
+        all_jets.append(jets[:n])
     
-    # Create output file with pre-allocated dataset
+    combined_jets = np.concatenate(all_jets)
+    
+    print(f"Shuffling {len(combined_jets)} jets...")
+    np.random.shuffle(combined_jets)
+    
     with h5py.File(out_path, "w") as fout:
-        out_dataset = fout.create_dataset("Jets", shape=(total_n,), dtype=dtype, compression="gzip")
-        
-        # Write data in order (sequential copy from each file)
-        write_pos = 0
-        for entry, lumi in zip(entries, eff_lumis):
-            xsec = entry["xsec_pb"]
-            n_keep = int(lumi_min * xsec)
-            with h5py.File(entry["h5_path"], "r") as fin:
-                n_avail = len(fin["Jets"])
-                n = min(n_keep, n_avail)
-                all_jets = fin["Jets"][:]
-                
-            print(f"Writing {n} jets to output...")
-            out_dataset[write_pos:write_pos + n] = all_jets[:n]
-            write_pos += n
-
-    print(f"Saved {out_path} with {total_n} jets.")
+        out_dataset = fout.create_dataset("Jets", data=combined_jets)
+    
+    print(f"Saved {out_path} with {len(combined_jets)} jets.")
 
 def merge_flat(entries, cols, pt_edges, total_per_bin, min_total_bin, out_path):
-    """Downsample in each pT bin to min_total_bin, then merge without shuffling."""
-    # Get dtype from first file
+    """Downsample in each pT bin to min_total_bin, load in memory, shuffle, then write."""
     first_file_path = entries[0]["h5_path"]
     with h5py.File(first_file_path, "r") as fin:
         dtype = fin["Jets"].dtype
     
-    # Collect indices per bin from all files
-    bin_indices = {i: [] for i in range(len(pt_edges)-1)}
+    bin_jets = {i: [] for i in range(len(pt_edges)-1)}
     
     for entry in entries:
         with h5py.File(entry["h5_path"], "r") as f:
-            pts = f["Jets"]["pt"][:]
+            all_jets = f["Jets"][:]
+            pts = all_jets["pt"]
             bins = bin_jet_pts(pts, pt_edges)
             
             for i in range(len(pt_edges)-1):
-                idx_in_bin = np.where(bins == i)[0]
-                if len(idx_in_bin) > 0:
-                    bin_indices[i].append((entry["h5_path"], idx_in_bin))
+                mask = bins == i
+                bin_jets[i].extend(all_jets[mask])
     
-    # Downsample each bin and collect indices grouped by file
-    file_indices = {}  # {file_path: [list of indices to extract]}
-    
+    all_selected_jets = []
     for i in range(len(pt_edges)-1):
-        if not bin_indices[i]:
+        if not bin_jets[i]:
             continue
         
-        # Concatenate all indices for this bin across files
-        bin_file_paths = []
-        bin_idx_lists = []
-        for file_path, indices in bin_indices[i]:
-            bin_file_paths.extend([file_path] * len(indices))
-            bin_idx_lists.extend(indices.tolist())
-        
-        n_avail = len(bin_idx_lists)
+        bin_array = np.array(bin_jets[i])
+        n_avail = len(bin_array)
         n = min(min_total_bin, n_avail)
         
         if n > 0:
-            # Downsample within bin
-            selected = downsample_indices(np.arange(n_avail), n)
-            for sel_idx in selected:
-                file_path = bin_file_paths[sel_idx]
-                jet_idx = bin_idx_lists[sel_idx]
-                if file_path not in file_indices:
-                    file_indices[file_path] = []
-                file_indices[file_path].append(jet_idx)
+            selected_idx = downsample_indices(np.arange(n_avail), n)
+            all_selected_jets.extend(bin_array[selected_idx])
     
-    total_n = sum(len(indices) for indices in file_indices.values())
-    
-    if total_n == 0:
+    if len(all_selected_jets) == 0:
         with h5py.File(out_path, "w") as fout:
-            fout.create_dataset("Jets", shape=(0,), dtype=dtype, compression="gzip")
+            fout.create_dataset("Jets", shape=(0,), dtype=dtype)
         print(f"Saved {out_path} with 0 jets.")
         return
     
-    # Create output file and write data sequentially by file
-    with h5py.File(out_path, "w") as fout:
-        out_dataset = fout.create_dataset("Jets", shape=(total_n,), dtype=dtype, compression="gzip")
-        
-        write_pos = 0
-        for file_path, indices in file_indices.items():
-            with h5py.File(file_path, "r") as fin:
-                all_jets = fin["Jets"][:]
-            
-            selected_jets = all_jets[indices]
-            
-            print(f"Writing {len(indices)} jets to output...")
-            out_dataset[write_pos:write_pos + len(indices)] = selected_jets
-            write_pos += len(indices)
+    combined_jets = np.array(all_selected_jets)
     
-    print(f"Saved {out_path} with {total_n} jets.")
+    print(f"Shuffling {len(combined_jets)} jets...")
+    np.random.shuffle(combined_jets)
+    
+    with h5py.File(out_path, "w") as fout:
+        out_dataset = fout.create_dataset("Jets", data=combined_jets)
+    
+    print(f"Saved {out_path} with {len(combined_jets)} jets (shuffled).")
 
 def main():
     parser = argparse.ArgumentParser(description="Stitch HDF5 files with optional flat or realistic pT spectrum.")
@@ -247,8 +212,7 @@ def main():
     output_realistic = os.path.join(args.output_dir, f"{args.dataset_prefix}_merged_realistic.h5")
     output_flat = os.path.join(args.output_dir, f"{args.dataset_prefix}_merged_flat.h5")
     
-    # Perform merging
-    if args.merge_type in ["realistic", "both"]:
++    if args.merge_type in ["realistic", "both"]:
         merge_realistic(entries, cols, eff_lumis, output_realistic)
     
     if args.merge_type in ["flat", "both"]:
