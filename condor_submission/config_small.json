@@ -1,9 +1,23 @@
 {
   "output_dir": "/store/user/roguljic/anomaly-tagging/H5_files/5Feb26/2022_postEE",
   "datasets": [
-    {      
-    "daspath": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2022EE/XtoYHto2W2Gto4Q2G/MX_1600_MY_200/250925_122042/0000",
-    "name": "Yto4q",
+    {
+    "daspath":"/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2022EE//EMJ_s_channel/mMed_1500_mDark_20_ctau_100/260216_123401/0000/",
+    "name": "EMJ_M1500",
+    "chunk_size": 10,
+    "max_chunks":10,
+    "xsec_pb": 1.0
+    },
+    {
+    "daspath":"/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2022EE//EMJ_s_channel/mMed_1000_mDark_20_ctau_100/260216_123317/0000/",
+    "name": "EMJ_M1000",
+    "chunk_size": 10,
+    "max_chunks":10,
+    "xsec_pb": 1.0
+    },
+    {
+    "daspath":"/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2022EE//EMJ_s_channel/mMed_750_mDark_20_ctau_100/260216_123224/0000/",
+    "name": "EMJ_M750",
     "chunk_size": 10,
     "max_chunks":10,
     "xsec_pb": 1.0

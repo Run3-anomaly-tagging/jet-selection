@@ -17,9 +17,10 @@ process_to_id = {
     'Wqq': [24],
     'Zqq': [23],
     'QCD': [0],
-    'SVJ': [4900111,4900113,4900211,4900213],
     'Yto4q': [35],
-    'Data': [0]
+    'Data': [0],
+    'SVJ': [4900111,4900113,4900211,4900213],
+    'EMJ' : [4900101,4900113,4900111,4900211,4900213]
 }
 
 def sanitize_process_name(process_name):
@@ -35,6 +36,8 @@ def sanitize_process_name(process_name):
         return "Data"
     elif "SVJ" in process_name:
         return "SVJ"
+    elif "EMJ" in process_name:
+        return "EMJ"
     else:
         return process_name
 
@@ -91,7 +94,7 @@ a.Cut("has_selected_jets", "selected_jet_indices.size() > 0")
 #We keep only leading two jets after selection
 a.Define("pruned_selected_jet_indices", "TruncateIndices(selected_jet_indices,2)")
 
-keep_list = ["pt", "phi", "eta", "mass","globalParT3_hidNeuron","globalParT3_QCD","globalParT3_TopbWqq","globalParT3_TopbWq","hadronFlavour","particleNet_QCD"]
+keep_list = ["pt", "phi", "eta", "msoftdrop","globalParT3_hidNeuron","globalParT3_QCD","globalParT3_TopbWqq","globalParT3_TopbWq","hadronFlavour","particleNet_QCD"]
 
 if (process_name=="TTto4Q"):
     CompileCpp('TIMBER_modules/top_gen_matching.cc')

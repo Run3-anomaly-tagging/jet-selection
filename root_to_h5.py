@@ -25,7 +25,7 @@ def main(input_file, output_file):
         FatJet_pt = tree["SelectedFatJet_pt"].array(entry_stop=n_events)
         FatJet_eta = tree["SelectedFatJet_eta"].array(entry_stop=n_events)
         FatJet_phi = tree["SelectedFatJet_phi"].array(entry_stop=n_events)
-        FatJet_mass = tree["SelectedFatJet_mass"].array(entry_stop=n_events)
+        FatJet_mass = tree["SelectedFatJet_msoftdrop"].array(entry_stop=n_events)
         FatJet_globalParT3_QCD = tree["SelectedFatJet_globalParT3_QCD"].array(entry_stop=n_events)
         FatJet_globalParT3_TopbWqq = tree["SelectedFatJet_globalParT3_TopbWqq"].array(entry_stop=n_events)
         FatJet_globalParT3_TopbWq = tree["SelectedFatJet_globalParT3_TopbWq"].array(entry_stop=n_events)
