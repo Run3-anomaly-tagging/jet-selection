@@ -16,3 +16,5 @@ condor_submission/logs
 *h5
 selection_H.py
 __pycache__
+# H5 validation plots
+h5_validation/out/
