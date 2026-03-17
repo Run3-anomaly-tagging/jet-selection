@@ -23,38 +23,60 @@ process_to_id = {
     'EMJ' : [4900101,4900113,4900111,4900211,4900213]
 }
 
+
+def detect_qcd_flavour_mode(process_name):
+    n = process_name.lower()
+    if "qcd_b" in n:
+        return "b"
+    if "qcd_c" in n:
+        return "c"
+    if "qcd_light" in n:
+        return "light"
+    return None
+
+def flavour_to_int(mode):
+    if mode == "b":
+        return 5
+    if mode == "c":
+        return 4
+    if mode == "light":
+        return 0
+    return -1
+
 def sanitize_process_name(process_name):
-    if "QCD" in process_name:
+    n = process_name.lower()
+    if "qcd" in n:
         return "QCD"
-    elif "WJets" in process_name:
+    elif "wjets" in n:
         return "Wqq"
-    elif "ZJets" in process_name:
+    elif "zjets" in n:
         return "Zqq"
-    elif "GluGluHto2B" in process_name:
+    elif "glugluhto2b" in n:
         return "Hbb"
-    elif "JetMet" in process_name:
+    elif "jetmet" in n:
         return "Data"
-    elif "SVJ" in process_name:
+    elif "svj" in n:
         return "SVJ"
-    elif "EMJ" in process_name:
+    elif "emj" in n:
         return "EMJ"
     else:
         return process_name
 
-if len(sys.argv) < 3:
+if len(sys.argv) < 4:
     print("Usage: python selection.py input_file.root output_file.root process")
     sys.exit(1)
 
 input_file = sys.argv[1]
 output_file = sys.argv[2]
 
+flavour_mode = detect_qcd_flavour_mode(sys.argv[3])
+target_hadron_flavour = flavour_to_int(flavour_mode)
 process_name = sanitize_process_name(sys.argv[3])
 
-try:
-    match_pdgid_list = process_to_id.get(process_name)
-except KeyError:
+match_pdgid_list = process_to_id.get(process_name)
+if match_pdgid_list is None:
     print(f"Process name {process_name} not recognized.")
-    exit(1)
+    sys.exit(1)
 
 if match_pdgid_list != [0]:
     do_match = True
@@ -83,9 +105,17 @@ if do_match:
         f"GenMatchSelectJets(FatJet_eta, FatJet_phi, GenPart_pdgId, GenPart_statusFlags, GenPart_eta, GenPart_phi, std::vector<int>{{{','.join(str(x) for x in match_pdgid_list)}}}, 0.8)")
     # Returns indices of jets passing pt, eta, and mass cuts.
     a.Define("kin_passing_jet_indices", f"SelectJets(FatJet_pt, FatJet_eta, FatJet_msoftdrop, {ptCut}, {etaCut}, {massCut})")
-    a.Define("selected_jet_indices", "IntersectIndices(genmatch_selected_jet_indices, kin_passing_jet_indices)")
+    a.Define("base_selected_jet_indices", "IntersectIndices(genmatch_selected_jet_indices, kin_passing_jet_indices)")
 else:
-    a.Define("selected_jet_indices", f"SelectJets(FatJet_pt, FatJet_eta, FatJet_msoftdrop, {ptCut}, {etaCut}, {massCut})")
+    a.Define("base_selected_jet_indices", f"SelectJets(FatJet_pt, FatJet_eta, FatJet_msoftdrop, {ptCut}, {etaCut}, {massCut})")
+
+if flavour_mode is not None:
+    a.Define(
+        "selected_jet_indices",
+        f"FilterJetsByHadronFlavour(base_selected_jet_indices, FatJet_hadronFlavour, {target_hadron_flavour})"
+    )
+else:
+    a.Define("selected_jet_indices", "base_selected_jet_indices")
 
 
 #Remove events without jets to avoid crashing

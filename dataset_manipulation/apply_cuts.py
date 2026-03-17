@@ -21,7 +21,7 @@ def apply_qcd_cuts(input_path, output_dir):
     }
 
     for name, mask in masks.items():
-        out_path = os.path.join(output_dir, f"{name}_flat.h5")
+        out_path = os.path.join(output_dir, f"{name}_realistic.h5")
         write_subset(out_path, jets[mask])
         print(f"Saved {out_path} with {mask.sum()} jets.")
 

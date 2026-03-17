@@ -175,11 +175,35 @@ def merge_flat(entries, cols, pt_edges, total_per_bin, min_total_bin, out_path):
     
     print(f"Saved {out_path} with {len(combined_jets)} jets (shuffled).")
 
+
+def merge_random_indexed(entries, cols, out_path):
+    """Concatenate all jets, then shuffle indices randomly."""
+    first_file_path = entries[0]["h5_path"]
+    with h5py.File(first_file_path, "r") as fin:
+        dtype = fin["Jets"].dtype
+    
+    all_jets = []
+    for entry in entries:
+        with h5py.File(entry["h5_path"], "r") as f:
+            jets = f["Jets"][:]
+            all_jets.append(jets)
+            print(f"{entry['name']}: loaded {len(jets)} jets")
+    
+    combined_jets = np.concatenate(all_jets)
+    
+    print(f"Shuffling {len(combined_jets)} jets...")
+    np.random.shuffle(combined_jets)
+    
+    with h5py.File(out_path, "w") as fout:
+        fout.create_dataset("Jets", data=combined_jets)
+    
+    print(f"Saved {out_path} with {len(combined_jets)} jets (randomly indexed).")
+
 def main():
     parser = argparse.ArgumentParser(description="Stitch HDF5 files with optional flat or realistic pT spectrum.")
     parser.add_argument("--dataset-prefix", default="QCD", help="Dataset prefix to match (e.g., 'QCD', 'ZJets')")
-    parser.add_argument("--merge-type", choices=["flat", "realistic", "both"], default="both", 
-                        help="Merge type: flat (pT bins), realistic (lumi matching), or both")
+    parser.add_argument("--merge-type", choices=["flat", "realistic", "random_indexed"], default="random_indexed", 
+                        help="Merge type: flat (pT bins), realistic (lumi matching), or random_indexed (simple concat + shuffle)")
     parser.add_argument("--output-dir", default="../data", help="Output directory for merged files")
     parser.add_argument("--config", default="../condor_submission/config.json", help="Path to config.json")
     args = parser.parse_args()
@@ -191,15 +215,20 @@ def main():
         print(f"No datasets found matching prefix '{args.dataset_prefix}' in config.")
         return
     
+    if args.merge_type == "random_indexed":
+        output_random = os.path.join(args.output_dir, f"{args.dataset_prefix}_merged_random_indexed.h5")
+        merge_random_indexed(entries, get_all_columns(entries[0]["h5_path"]), output_random)
+        return
+
     pt_edges = None
-    if args.merge_type in ["flat", "both"]:
+    if args.merge_type == "flat":
         pt_edges = np.arange(PT_MIN, PT_MAX+PT_BIN_WIDTH, PT_BIN_WIDTH)
     
     report_result = report_counts_and_lumi(entries, pt_edges)
     eff_lumis = report_result["eff_lumis"]
     lumi_min = np.min(eff_lumis)
     
-    if args.merge_type in ["realistic", "both"]:
+    if args.merge_type == "realistic":
         print(f"\nFor realistic merge: will downsample all files to lumi = {lumi_min:.3f} pb^-1")
     
     proceed = input("\nProceed with merging? [y/N]: ")
@@ -212,10 +241,10 @@ def main():
     output_realistic = os.path.join(args.output_dir, f"{args.dataset_prefix}_merged_realistic.h5")
     output_flat = os.path.join(args.output_dir, f"{args.dataset_prefix}_merged_flat.h5")
     
-+    if args.merge_type in ["realistic", "both"]:
+    if args.merge_type == "realistic":
         merge_realistic(entries, cols, eff_lumis, output_realistic)
     
-    if args.merge_type in ["flat", "both"]:
+    if args.merge_type == "flat":
         merge_flat(entries, cols, pt_edges, report_result["total_per_bin"], 
                    report_result["min_total_bin"], output_flat)
 

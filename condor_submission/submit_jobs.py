@@ -88,7 +88,7 @@ def create_input_list_file(input_files, output_files, dataset_name, chunk_id):
             f.write(f"{in_f} {out_f} {dataset_name}\n")
     return chunk_filename
 
-def create_job_script():
+def create_job_script(flat_mass = False):
     """Create a generic job.sh script that takes chunk txt filename as first argument"""
     script_content = """#!/bin/bash
 set -x
@@ -151,6 +151,10 @@ done < "${CHUNK_FILE}"
 echo "Job processing chunk ${CHUNK_FILE} completed at $(date)"
 """
     script_path = Path("job.sh")
+    if flat_mass:
+        script_content = script_content.replace("selection.py", "selection_flat_mass.py")
+        script_content = script_content.replace("${process_name}", "")
+
     with open(script_path, 'w') as f:
         f.write(script_content)
     os.chmod(script_path, 0o755)
@@ -252,6 +256,12 @@ def main():
 
         print(f"\nProcessing dataset: {dataset}")
         print(f"Dataset name: {dataset_name}")
+
+        if "flat_mass" in dataset_name.lower():
+            print("Flat mass dataset detected, using selection_flat_mass.py")
+            flat_mass = True
+        else:            
+            flat_mass = False
         
         # Check if merged file already exists
         if merged_file_exists(config['output_dir'], dataset_name):
@@ -300,7 +310,7 @@ def main():
             if chunk_txt_files:
                 print(f"Number of files to be processed for {dataset_name}: {files_to_process_this_dataset}")
                 create_input_zip()
-                create_job_script()
+                create_job_script(flat_mass=flat_mass)
                 jdl_path = create_condor_jdl(chunk_txt_files, dataset_name)
                 if submit_flag:
                     cmd = f"condor_submit {jdl_path}"

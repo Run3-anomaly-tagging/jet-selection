@@ -89,3 +89,18 @@ RVec<int> TruncateIndices(const RVec<int>& indices, size_t maxN) {
     if (indices.size() <= maxN) return indices;
     return RVec<int>(indices.begin(), indices.begin() + maxN);
 }
+
+RVec<int> FilterJetsByHadronFlavour(const RVec<int>& jet_indices, const RVec<int>& hadronFlavour, int targetFlavour)
+{
+    RVec<int> out;
+    for (auto idx : jet_indices) {
+        // Shouldn't happen
+        if (idx < 0 || static_cast<size_t>(idx) >= hadronFlavour.size()) continue;
+
+        const int flav = std::abs(hadronFlavour[idx]);
+        bool keep = (flav == targetFlavour);
+
+        if (keep) out.push_back(idx);
+    }
+    return out;
+}
