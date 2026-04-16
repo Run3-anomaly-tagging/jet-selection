@@ -16,11 +16,16 @@ def main(input_file, output_file):
     start_time = time.time()
     with uproot.open(input_file) as f:
         tree = f["Events"]
+        if not "SelectedFatJet_pt" in tree.keys():
+            #Files can be empty if input is small so selection results in zero jets
+            #Create a dummy file to transfer (for condor bookkeeping)
+            with h5py.File(output_file, "w") as f:
+                f.create_dataset("dummy", data=np.array([0]))
+            return
 
         # Limit events if debugging
         n_events_total = len(tree["SelectedFatJet_pt"].array())
         n_events = n_events_total if MAX_EVENTS < 0 else min(MAX_EVENTS, n_events_total)
-
         # Load jet-level info
         FatJet_pt = tree["SelectedFatJet_pt"].array(entry_stop=n_events)
         FatJet_eta = tree["SelectedFatJet_eta"].array(entry_stop=n_events)

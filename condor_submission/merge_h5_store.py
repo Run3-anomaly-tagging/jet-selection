@@ -29,6 +29,19 @@ EOS_CMD    = "eos"
 XRDCP_CMD  = "xrdcp"
 RDR_PREFIX = "root://cmseos.fnal.gov/"
 
+
+def is_dummy_file(path):
+    #Some files are empty because of selection so we skip them
+    try:
+        with h5py.File(path, "r") as f:
+            if "dummy" in f and len(f.keys()) == 1:
+                return True
+    except Exception:
+        # Corrupt or unreadable file
+        return True
+
+    return False
+
 def eos_ls(path):
     """List entries in an EOS directory."""
     cmd = [EOS_CMD, RDR_PREFIX, "ls", path]
@@ -100,15 +113,21 @@ for sample in samples:
     print(f"[start] {sample}: merging {len(files)} files")
     dataset_paths = []
 
+    first_flag = True
     for idx, fname in enumerate(files):
         remote_file = f"{sample_dir}/{fname}"
         local_file  = os.path.join(LOCAL_WORKDIR, fname)
 
         print(f"[download] {remote_file}")
         xrdcp_in(remote_file, local_file)
+        if is_dummy_file(local_file):
+            print("Skipping empty file")
+            os.remove(local_file)
+            continue
 
         # On first file, collect all dataset paths and initialize merged file
-        if idx == 0:
+        if first_flag:
+            first_flag = False
             with h5py.File(local_file, 'r') as f0:
                 # traverse to collect dataset paths
                 f0.visititems(lambda path, obj: dataset_paths.append(path) if isinstance(obj, h5py.Dataset) else None)

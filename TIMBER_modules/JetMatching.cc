@@ -7,6 +7,14 @@
 
 using namespace ROOT::VecOps; //RVec
 
+float CalculateST(const RVec<float>& jet_pt, const RVec<float>& photon_pt, const float MET) {//AK4 jets, photons, MET
+    float st = 0;
+    for (auto pt : jet_pt) st += pt;
+    for (auto pt : photon_pt) st += pt;
+    st += MET;
+    return st;
+}
+
 //Returns indices of jets passing pt, eta, and mass cuts.
 RVec<int> SelectJets(
     const ROOT::VecOps::RVec<float> &pt,
@@ -24,11 +32,42 @@ RVec<int> SelectJets(
     return indices;
 }
 
+//Overloaded to select jets that have delta R > object (e.g. photon) to avoid overlap
+RVec<int> SelectJets(
+    const ROOT::VecOps::RVec<float> &pt,
+    const ROOT::VecOps::RVec<float> &eta,
+    const ROOT::VecOps::RVec<float> &phi,
+    const ROOT::VecOps::RVec<float> &mass,
+    float ptCut,
+    float etaCut,
+    float massCut,
+    float object_eta,
+    float object_phi,
+    float deltaR_cut)
+{
+    ROOT::VecOps::RVec<int> indices;
+    for (size_t i = 0; i < pt.size(); ++i) {
+        float dR = DeltaR(eta[i], phi[i], object_eta, object_phi);
+        if (pt[i] > ptCut && std::abs(eta[i]) < etaCut && mass[i] > massCut && dR > deltaR_cut)
+            indices.push_back(i);
+    }
+    return indices;
+}
+
+float DeltaR(float eta1, float phi1, float eta2, float phi2) {
+    float dEta = eta1 - eta2;
+    float dPhi = DeltaPhi(phi1, phi2);
+    return std::sqrt(dEta * dEta + dPhi * dPhi);
+}
+
 float DeltaPhi(float phi1, float phi2){
     float dPhi = std::fabs(phi1 - phi2);
     if (dPhi > M_PI) dPhi = 2 * M_PI - dPhi;
     return dPhi;
 }
+
+
+
 
 RVec<int> GenMatchSelectJets(
     const RVec<float>& jet_eta,

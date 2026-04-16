@@ -80,15 +80,19 @@ def chunk_files(files, chunk_size=10):
     for i in range(0, len(files), chunk_size):
         yield files[i:i + chunk_size]
 
-def create_input_list_file(input_files, output_files, dataset_name, chunk_id):
+def create_input_list_file(input_files, output_files, dataset_name, chunk_id, mode, region=None, year=None):
     """Create a text file listing input/output pairs for a chunk."""
     chunk_filename = Path(f"{dataset_name}_chunk_{chunk_id:03d}.txt")
     with open(chunk_filename, 'w') as f:
         for in_f, out_f in zip(input_files, output_files):
-            f.write(f"{in_f} {out_f} {dataset_name}\n")
+            if mode=="cr":
+                line = f"{in_f} {out_f} {region} {year}"
+            else:
+                line = f"{in_f} {out_f} {dataset_name}"
+            f.write(f"{line}\n")
     return chunk_filename
 
-def create_job_script(flat_mass = False):
+def create_job_script(mode="standard"):
     """Create a generic job.sh script that takes chunk txt filename as first argument"""
     script_content = """#!/bin/bash
 set -x
@@ -113,7 +117,7 @@ fi
 echo "ls after unzip"
 ls
 
-while read input_file output_file process_name; do
+WHILE_LOOP
     echo "Processing input ${input_file} -> output ${output_file}"
 
     LOCAL_INPUT="input_local.root"
@@ -124,7 +128,8 @@ while read input_file output_file process_name; do
     fi
 
     SELECTED_FILE="selected_events.root"
-    python3 selection.py "${LOCAL_INPUT}" "${SELECTED_FILE}" "${process_name}"
+    #python3 selection.py "${LOCAL_INPUT}" "${SELECTED_FILE}" "${process_name}"
+    SCRIPT_CALL
 
     if [ $? -ne 0 ]; then
         echo "Selection failed for ${input_file}"
@@ -151,10 +156,19 @@ done < "${CHUNK_FILE}"
 echo "Job processing chunk ${CHUNK_FILE} completed at $(date)"
 """
     script_path = Path("job.sh")
-    if flat_mass:
-        script_content = script_content.replace("selection.py", "selection_flat_mass.py")
-        script_content = script_content.replace("${process_name}", "")
 
+    if mode == "flat_mass":
+        script_call = 'python3 selection_flat_mass.py "${LOCAL_INPUT}" "${SELECTED_FILE}"'
+        argument_loop = "while read input_file output_file process_name; do"
+    elif mode == "cr":
+        script_call = 'python3 selection_cr.py "${LOCAL_INPUT}" "${SELECTED_FILE}" "${region}" "${year}"'
+        argument_loop = "while read input_file output_file region year; do"
+    else:
+        script_call = 'python3 selection.py "${LOCAL_INPUT}" "${SELECTED_FILE}" "${process_name}"'
+        argument_loop = "while read input_file output_file process_name; do"
+        
+    script_content = script_content.replace("SCRIPT_CALL", script_call)
+    script_content = script_content.replace("WHILE_LOOP", argument_loop)
     with open(script_path, 'w') as f:
         f.write(script_content)
     os.chmod(script_path, 0o755)
@@ -179,7 +193,7 @@ transfer_output_files = ""
 output = logs/job_$(args).out
 error = logs/job_$(args).err
 log = logs/job_$(args).log
-+SingularityImage = "/cvmfs/unpacked.cern.ch/registry.hub.docker.com/mrogulji/timber:run3/"
++SingularityImage = "/cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/jhu-tools/timber:run3/"
 requirements = (OpSysAndVer =?= "AlmaLinux9")
 request_cpus = 1
 request_memory = 4GB
@@ -221,17 +235,23 @@ def merged_file_exists(output_dir, dataset_name):
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python submit_jobs.py config.json ")
-        print("Optional for automatic submission: python submit_jobs.py config.json 1")
+        print("Usage: python submit_jobs.py config.json $mode")
+        print("Modes are: standard, flat_mass, cr")
+        print("Optional for automatic submission: python submit_jobs.py config.json cr 1")
         sys.exit(1)
     
     config_file = sys.argv[1]
+    mode = sys.argv[2]
     with open(config_file, 'r') as f:
         config = json.load(f)
-    if(len(sys.argv)==3 and sys.argv[2]=="1"):
+    if(len(sys.argv)==4 and sys.argv[3]=="1"):
         submit_flag = True
     else: 
         submit_flag = False
+
+    if mode not in ["standard", "flat_mass", "cr"]:
+        print(f"Invalid mode: {mode}")
+        sys.exit(1)
     
     Path("logs").mkdir(exist_ok=True)
 
@@ -256,12 +276,6 @@ def main():
 
         print(f"\nProcessing dataset: {dataset}")
         print(f"Dataset name: {dataset_name}")
-
-        if "flat_mass" in dataset_name.lower():
-            print("Flat mass dataset detected, using selection_flat_mass.py")
-            flat_mass = True
-        else:            
-            flat_mass = False
         
         # Check if merged file already exists
         if merged_file_exists(config['output_dir'], dataset_name):
@@ -292,6 +306,9 @@ def main():
             chunk_txt_files = []
             files_to_process_this_dataset = 0
 
+            year = dataset_info.get("year",None)
+            region = dataset_info.get("region",None)
+
             for chunk_id, file_chunk in enumerate(chunked_files):
                 input_files = file_chunk
                 output_files = [f"{config['output_dir']}/{dataset_name}/{get_output_filename(f)}" for f in input_files]
@@ -302,7 +319,7 @@ def main():
                     continue
 
                 filtered_input_files, filtered_output_files = zip(*filtered_pairs)
-                chunk_file = create_input_list_file(filtered_input_files, filtered_output_files, dataset_name, chunk_id)
+                chunk_file = create_input_list_file(filtered_input_files, filtered_output_files, dataset_name, chunk_id, mode, region=region, year=year)
                 chunk_txt_files.append(chunk_file)
                 files_to_process_this_dataset += len(filtered_input_files)
                 files_to_process += len(filtered_input_files)
@@ -310,7 +327,7 @@ def main():
             if chunk_txt_files:
                 print(f"Number of files to be processed for {dataset_name}: {files_to_process_this_dataset}")
                 create_input_zip()
-                create_job_script(flat_mass=flat_mass)
+                create_job_script(mode=mode)
                 jdl_path = create_condor_jdl(chunk_txt_files, dataset_name)
                 if submit_flag:
                     cmd = f"condor_submit {jdl_path}"
